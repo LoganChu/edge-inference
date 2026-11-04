@@ -127,6 +127,50 @@ layer, legal in PyTorch, rank-mismatched for TensorRT. A six-line graph pass fol
 (`pi05_edge/graph_passes.py`, bit-identical output). TensorRT also reorders engine input bindings
 relative to the forward signature, so a raw-runtime caller must bind by name.
 
+### FP8
+
+Same three stacks, with the 252 Gemma linear layers (q/k/v/o and gate/up/down in the 2B prefix and
+the 300M expert) in FP8 E4M3 W8A8. Vision, the token embedding, the (Ada)RMSNorm dense layers and
+the action/time projections keep their precision. There is no FP8 format shared across the stacks,
+so each uses its own quantiser (`pi05_edge/quantize.py`):
+
+| stack | FP8 recipe | status |
+|---|---|---|
+| PyTorch eager | torchao `Float8DynamicActivationFloat8Weight`, per-row dynamic scales, `torch._scaled_mm` | runs |
+| Direct TensorRT / ExecuTorch + TensorRT | NVIDIA ModelOpt `FP8_DEFAULT_CFG`: per-tensor static scales, max-calibrated on 40 LIBERO scenes disjoint from the 8 evaluation scenes, exported as `tensorrt.quantize_op` Q/DQ nodes | runs; same engines in both packagings |
+| ExecuTorch + CUDA | torchao float8 (W8A8 and weight-only) | **not supported in ET 1.5.1**: `_scaled_mm` needs a column-major weight view that ExecuTorch's copy-only edge dialect cannot express ("mat2 must be col_major"), and float8 weights fail the CUDA backend's weight-metadata check at load (`Malformed CUDA FQN weight metadata`, error 0x23). The backend's low-precision path is INT4 weight-only (torchao `tile_packed_to_4d`), which does lower and run. |
+
+| path | prefix | 1 expert step | 10 fused steps | control cycle | action MAE vs eager fp32 |
+|---|---|---|---|---|---|
+| PyTorch eager bf16 (reference) | 29.9 | 13.4 | 115 | 189 ms | 0.0021 |
+| PyTorch eager FP8 (torchao) | 25.0 | 24.4 | 248 | 307 ms | 0.0042 |
+| Direct TensorRT bf16 | 27.2 | 2.9 | not built | 62 ms | 0.0019 |
+| **Direct TensorRT FP8** | **18.0** | 3.2 | 27.2 | **57 ms** (50 ms fused) | 0.0059 |
+| ExecuTorch + TensorRT bf16 (ET 1.4.1, host I/O) | 89.3 | 8.1 | not built | 166 ms | 0.0019 |
+| ExecuTorch + TensorRT FP8 (ET 1.4.1, host I/O) | 49.8 | 6.2 | 33.3 | 141 ms (93 ms fused) | 0.0059 |
+
+What FP8 changes, and does not:
+
+* **It helps exactly one stage.** The GEMM-bound prefix drops 27 → 18 ms in TensorRT. The expert step
+  is launch-bound and does not gain: 2.9 → 3.2 ms, the Q/DQ work costs more than the smaller GEMMs
+  save at 50 tokens. The whole cycle goes 62 → 57 ms. FP8 is a prefill optimisation for this model.
+* **In eager PyTorch FP8 is a loss.** torchao's dynamic quantisation adds amax, scale and cast kernels
+  around every linear; on the launch-bound expert that doubles the step (13 → 24 ms) and the cycle
+  ends at 307 ms, slower than bf16. FP8 needs a compiler that fuses the quantisation into the GEMM.
+* **It halves what the memory-bound steps had to move.** Engines: expert 1.10 GB → 0.79 GB, each
+  6-layer prefix chunk 1.32 → 0.66 GB. The smaller engines also pass through the ExecuTorch `.pte`
+  serialisation in-process (2 s each) where the bf16 ones needed the separate packaging step, and the
+  fused ten-step engine that was OOM-killed in bf16 now builds (294 s). It comes out at 358 MB:
+  with the denoising schedule fixed inside the graph, the time-conditioning path (sinusoidal
+  embedding, time MLP and the 453 MB of fp32 AdaRMS modulation weights) is a compile-time constant,
+  and TensorRT folds it away. That is the strongest argument for the fused unit on this model.
+* **Accuracy cost is real but small.** Action MAE against the fp32 reference goes from 0.0021 (bf16,
+  any path) to 0.0059 (TensorRT FP8, static scales) and 0.0042 (torchao, dynamic per-row scales);
+  max error 0.06 on actions of mean magnitude 0.32, gripper signs unchanged on all 8 scenes. Modular
+  and fused FP8 agree to 1e-4, so compounding ten FP8 steps does not add error. The eager ModelOpt fake-quant pass (same scales, simulated rounding, no FP8 kernels) lands at 0.0058 vs fp32, and the TensorRT engine sits 0.0039 MAE from it, the same distance two eager FP8 runs sit from each other (0.0038 to 0.0044), so the error is the static per-tensor recipe itself, not the engine.
+* **Export-time friction is unchanged.** The Q/DQ graph needs the same empty-`cat` pass (72 nodes per
+  step, 720 in the fused graph) and the same name-based binding; calibration adds about 20 s per export.
+
 ### Which one, then?
 
 * **Lowest latency on an NVIDIA target: direct TensorRT**, 62 ms per cycle here, ~16 Hz of full

@@ -7,11 +7,16 @@ from .common import RESULTS
 OUT = RESULTS.parent / "summary.md"
 METHODS = ["vision", "prefix", "denoise_step", "denoise10", "end_to_end_modular", "end_to_end_fused"]
 PATH_ORDER = ["eager_float32", "eager_bfloat16", "eager_bfloat16_tf32", "et_cuda_1.5.1", "et_cuda_1.4.1", "et_cuda_1.4.1_chunked",
-              "trt_direct", "et_trt_1.4.1", "et_cuda_1.5.1_vision_tf32", "trt_direct_vision_fp32"]
+              "trt_direct", "et_trt_1.4.1", "eager_bfloat16_fp8_torchao", "eager_bfloat16_fp8_modelopt", "trt_direct_fp8", "et_trt_1.4.1_fp8",
+              "et_cuda_1.5.1_vision_tf32", "trt_direct_vision_fp32"]
 PATH_LABEL = {
     "eager_float32": "PyTorch eager fp32 (reference)",
     "eager_bfloat16": "PyTorch eager bf16",
     "eager_bfloat16_tf32": "PyTorch eager bf16, TF32 for fp32 layers",
+    "eager_bfloat16_fp8_torchao": "PyTorch eager, FP8 W8A8 (torchao dynamic) on Gemma linears",
+    "eager_bfloat16_fp8_modelopt": "PyTorch eager, ModelOpt FP8 fake-quant (numerics only)",
+    "trt_direct_fp8": "Direct TensorRT, FP8 W8A8 (ModelOpt static) on Gemma linears",
+    "et_trt_1.4.1_fp8": "ExecuTorch + TensorRT delegate, FP8 engines",
     "et_cuda_1.5.1_vision_tf32": "ExecuTorch + CUDA, vision compiled with TF32",
     "trt_direct_vision_fp32": "Direct TensorRT, vision with TF32 disabled",
     "et_cuda_1.5.1": "ExecuTorch + CUDA (AOTInductor), ET 1.5.1",
@@ -65,7 +70,8 @@ def main():
     lines += ["", "## Fidelity of the predicted action chunk (MAE on the 7 real action dims, 8 LIBERO observations, same noise)", ""]
     lines.append("| path | variant | MAE vs eager fp32 | max abs vs fp32 | MAE vs eager bf16 | gripper sign agreement vs fp32 |")
     lines.append("|---|---|---|---|---|---|")
-    rows = [("eager_bfloat16", "", "eager_bfloat16"), ("eager_bfloat16_tf32", "", "eager_bfloat16_tf32")]
+    rows = [("eager_bfloat16", "", "eager_bfloat16"), ("eager_bfloat16_tf32", "", "eager_bfloat16_tf32"),
+            ("eager_bfloat16_fp8_torchao", "", "eager_bfloat16_fp8_torchao"), ("eager_bfloat16_fp8_modelopt", "", "eager_bfloat16_fp8_modelopt")]
     for p in paths:
         for variant in ["modular", "fused"]:
             if f"{p}_{variant}" in acts:

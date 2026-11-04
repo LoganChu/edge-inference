@@ -55,4 +55,16 @@ run bench_trt_vision_fp32         $TRT  -m pi05_edge.bench_trt_direct --dir mode
 run export_et_cuda_15_vision_tf32 $ET15 -m pi05_edge.export_et_cuda --method vision --out models/et_cuda_1.5.1_tf32 --tf32
 run bench_et_cuda_15_vision_tf32  $ET15 -m pi05_edge.bench_et --dir models/et_cuda_1.5.1_tf32 --label et_cuda_1.5.1_vision_tf32 --methods vision --vision-only
 
+# --- FP8 on the Gemma linears (vision, embedding, norms and action projections stay as they are)
+run eager_bf16_fp8_torchao   $ET15 -m pi05_edge.bench_eager --dtype bfloat16 --quant fp8_torchao
+mkdir -p models/trt_fp8
+ln -sfn "$PWD/models/trt/vision" models/trt_fp8/vision
+ln -sfn "$PWD/models/trt/prefix_embed" models/trt_fp8/prefix_embed
+for m in denoise_step prefix_l0 prefix_l1 prefix_l2 denoise10; do
+  run export_trt_fp8_$m      $TRT -m pi05_edge.export_trt --method $m --out models/trt_fp8 --quant fp8
+done
+run bench_trt_direct_fp8     $TRT -m pi05_edge.bench_trt_direct --dir models/trt_fp8 --label trt_direct_fp8
+run bench_et_trt_fp8         $TRT -m pi05_edge.bench_et --dir models/trt_fp8 --label et_trt_1.4.1_fp8
+run eager_bf16_fp8_modelopt  $TRT -m pi05_edge.bench_eager --dtype bfloat16 --quant fp8_modelopt --iters 3   # numerics reference only
+
 $ET15 -m pi05_edge.report

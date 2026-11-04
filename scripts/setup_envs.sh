@@ -23,7 +23,7 @@ make_env () {  # name, then pip specs
 
 case "${1:-all}" in
   trt|all)
-    make_env trt "torch==2.14.1+cu132" "torchvision" "torch_tensorrt==2.14.0+cu132" \
+    make_env trt "torch==2.14.1+cu132" "torchvision" "torch_tensorrt==2.14.0+cu132" "nvidia-modelopt[torch]==0.48.0" \
                  "tensorrt-cu13==11.1.0.106" "executorch==1.4.1" "torch-tensorrt-executorch-runtime==0.1.0" ;;&
   et15|all)
     make_env et15 "torch==2.15.0+cu132" "torchvision" "executorch==1.5.1+cu132" ;;

@@ -19,10 +19,12 @@ def main():
     ap.add_argument("--iters", type=int, default=20)
     ap.add_argument("--n-obs", type=int, default=None, help="fidelity on this many observations (default all)")
     ap.add_argument("--tf32", action="store_true", help="allow TF32 tensor-core math for fp32 GEMMs/convs (TensorRT's default)")
+    ap.add_argument("--quant", default="none", choices=["none", "fp8_torchao", "fp8_modelopt"],
+                    help="FP8 on the Gemma linears: torchao dynamic W8A8 (real FP8 GEMMs) or ModelOpt static fake-quant (numerics of the TensorRT recipe)")
     args = ap.parse_args()
     torch.backends.cuda.matmul.allow_tf32 = args.tf32  # default: keep the fp32 reference honest
     torch.backends.cudnn.allow_tf32 = args.tf32
-    label = f"eager_{args.dtype}" + ("_tf32" if args.tf32 else "")
+    label = f"eager_{args.dtype}" + ("_tf32" if args.tf32 else "") + (f"_{args.quant}" if args.quant != "none" else "")
 
     mem_report("start")
     bundle = load_bundle()
@@ -31,6 +33,18 @@ def main():
     summary = param_summary(policy)
     print("[params]", summary)
     mem_report("model loaded")
+    quant_info = {"recipe": "none"}
+    if args.quant == "fp8_torchao":
+        from .quantize import fp8_torchao
+        quant_info = fp8_torchao(policy)
+    elif args.quant == "fp8_modelopt":
+        from .data import load_bundle as _lb
+        from .quantize import fp8_modelopt
+        from .common import MODELS
+        quant_info = fp8_modelopt(policy, parts, _lb(path=MODELS / "inputs" / "calib_bundle.pt"))
+    if args.quant != "none":
+        print(f"[quant] {quant_info}", flush=True)
+        mem_report("after quantisation")
 
     n_obs = args.n_obs or len(bundle["uids"])
     ref_actions, mod_err, fused_err = [], [], []
@@ -68,7 +82,7 @@ def main():
         print(f"[time] {k:24s} {v['median_ms']:9.2f} ms (p90 {v['p90_ms']:.2f})")
     mem = mem_report("end")
     write_result(label, {
-        "path": "pytorch_eager", "dtype": args.dtype, "tf32": args.tf32, "params": summary, "timings_ms": timings,
+        "path": "pytorch_eager", "dtype": args.dtype, "tf32": args.tf32, "quant": quant_info, "params": summary, "timings_ms": timings,
         "fidelity_modular_vs_reference_mae_max": max(mod_err), "fidelity_fused_vs_reference_mae_max": max(fused_err),
         "shapes": {k: [tuple(t.shape) for t in v] for k, v in ex.items()}, "memory": mem,
     })

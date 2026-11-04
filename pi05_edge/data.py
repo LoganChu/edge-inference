@@ -78,9 +78,12 @@ def make_prompt(instruction: str, state: np.ndarray, max_state_dim: int = 32) ->
 
 
 def build_bundle(n_obs: int = 8, n_img: int = 3, max_length: int = 200, chunk: int = 50,
-                 action_dim: int = 32, seed: int = 0) -> dict:
+                 action_dim: int = 32, seed: int = 0, init_state: int | None = None) -> dict:
+    """init_state=None -> the benchmark's core initial state (evaluation set); another value -> a disjoint
+    set of scenes, used as calibration data for static quantisation."""
     manifest = json.loads((VLA_BENCH_DATA / "manifest.json").read_text())
-    obs = [o for o in manifest["observations"] if o["init_state"] == manifest["core_init_state"]]
+    want = manifest["core_init_state"] if init_state is None else init_state
+    obs = [o for o in manifest["observations"] if o["init_state"] == want]
     # spread over the four suites
     by_suite: dict[str, list] = {}
     for o in obs:
@@ -124,8 +127,8 @@ def build_bundle(n_obs: int = 8, n_img: int = 3, max_length: int = 200, chunk: i
     return bundle
 
 
-def load_bundle(device: str = "cuda") -> dict:
-    b = torch.load(INPUTS, weights_only=False)
+def load_bundle(device: str = "cuda", path=None) -> dict:
+    b = torch.load(path or INPUTS, weights_only=False)
     return {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in b.items()}
 
 
@@ -146,9 +149,14 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-obs", type=int, default=8)
+    ap.add_argument("--calib", type=int, default=0, help="also write a calibration bundle of this many scenes from another initial state")
     args = ap.parse_args()
-    b = build_bundle(args.n_obs)
     INPUTS.parent.mkdir(parents=True, exist_ok=True)
+    if args.calib:
+        c = build_bundle(args.calib, init_state=17, seed=1)
+        torch.save(c, INPUTS.parent / "calib_bundle.pt")
+        print("calibration bundle:", len(c["uids"]), "scenes from init_state 17 ->", INPUTS.parent / "calib_bundle.pt")
+    b = build_bundle(args.n_obs)
     torch.save(b, INPUTS)
     print("tokenizer:", b["tokenizer"]); print("norm stats:", b["norm_stats"])
     print("uids:", b["uids"])
