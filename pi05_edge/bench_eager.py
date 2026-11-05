@@ -19,8 +19,8 @@ def main():
     ap.add_argument("--iters", type=int, default=20)
     ap.add_argument("--n-obs", type=int, default=None, help="fidelity on this many observations (default all)")
     ap.add_argument("--tf32", action="store_true", help="allow TF32 tensor-core math for fp32 GEMMs/convs (TensorRT's default)")
-    ap.add_argument("--quant", default="none", choices=["none", "fp8_torchao", "fp8_modelopt"],
-                    help="FP8 on the Gemma linears: torchao dynamic W8A8 (real FP8 GEMMs) or ModelOpt static fake-quant (numerics of the TensorRT recipe)")
+    ap.add_argument("--quant", default="none", choices=["none", "fp8_torchao", "fp8_modelopt", "fp4_torchao", "fp4_modelopt"],
+                    help="Low precision on the Gemma linears: torchao dynamic W8A8 / NVFP4 W4A4 (real low-precision GEMMs) or ModelOpt fake-quant (numerics of the TensorRT recipe)")
     args = ap.parse_args()
     torch.backends.cuda.matmul.allow_tf32 = args.tf32  # default: keep the fp32 reference honest
     torch.backends.cudnn.allow_tf32 = args.tf32
@@ -34,14 +34,14 @@ def main():
     print("[params]", summary)
     mem_report("model loaded")
     quant_info = {"recipe": "none"}
-    if args.quant == "fp8_torchao":
-        from .quantize import fp8_torchao
-        quant_info = fp8_torchao(policy)
-    elif args.quant == "fp8_modelopt":
-        from .data import load_bundle as _lb
-        from .quantize import fp8_modelopt
+    if args.quant.endswith("_torchao"):
+        from . import quantize
+        quant_info = getattr(quantize, args.quant)(policy)
+    elif args.quant.endswith("_modelopt"):
         from .common import MODELS
-        quant_info = fp8_modelopt(policy, parts, _lb(path=MODELS / "inputs" / "calib_bundle.pt"))
+        from .data import load_bundle as _lb
+        from .quantize import modelopt_quantize
+        quant_info = modelopt_quantize(args.quant.split("_")[0], policy, parts, _lb(path=MODELS / "inputs" / "calib_bundle.pt"))
     if args.quant != "none":
         print(f"[quant] {quant_info}", flush=True)
         mem_report("after quantisation")

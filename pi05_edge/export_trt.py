@@ -65,7 +65,8 @@ def main():
     ap.add_argument("--skip-plan", action="store_true")
     ap.add_argument("--dryrun", action="store_true", help="partition only; report which ops TensorRT will not take")
     ap.add_argument("--disable-tf32", action="store_true", help="fp32 layers in true fp32 instead of TensorRT's default TF32")
-    ap.add_argument("--quant", default="none", choices=["none", "fp8"], help="fp8: ModelOpt W8A8 E4M3 on the Gemma linears, calibrated on models/inputs/calib_bundle.pt")
+    ap.add_argument("--quant", default="none", choices=["none", "fp8", "fp4"],
+                    help="ModelOpt PTQ on the Gemma linears, calibrated on models/inputs/calib_bundle.pt: fp8 = W8A8 E4M3 per-tensor static; fp4 = NVFP4 W4A4 block-16")
     ap.add_argument("--n-calib", type=int, default=40)
     args = ap.parse_args()
 
@@ -81,16 +82,16 @@ def main():
     example = parts.example_inputs()[args.method]
     mem_report("model loaded")
     quant_info = {"recipe": "none"}
-    if args.quant == "fp8":
+    if args.quant != "none":
         from .data import load_bundle
-        from .quantize import fp8_modelopt
-        quant_info = fp8_modelopt(policy, parts, load_bundle(path=MODELS / "inputs" / "calib_bundle.pt"), args.n_calib)
+        from .quantize import modelopt_quantize
+        quant_info = modelopt_quantize(args.quant, policy, parts, load_bundle(path=MODELS / "inputs" / "calib_bundle.pt"), args.n_calib)
         print(f"[quant] {quant_info}", flush=True)
         mem_report("after calibration")
 
     from .quantize import export_context
     t0 = time.time()
-    with torch.no_grad(), export_context("fp8_modelopt" if args.quant == "fp8" else "none"):
+    with torch.no_grad(), export_context(f"{args.quant}_modelopt" if args.quant != "none" else "none"):
         ep = torch.export.export(module, example, strict=False)
     t_export = time.time() - t0
     print(f"[export] torch.export {args.method}: {len(ep.graph.nodes)} nodes in {t_export:.1f}s", flush=True)
@@ -164,7 +165,7 @@ def main():
         print(f"[plan] wrote {args.method}.plan ({len(blob)/1e6:.1f} MB)", flush=True)
         result["files_MB"] = {p.name: round(p.stat().st_size / 1e6, 1) for p in sorted(out_dir.iterdir())}
         result["memory"] = mem_report("after .plan")
-        write_result(f"export_trt_{args.method}" + ("_fp8" if args.quant == "fp8" else ""), result)  # partial record in case the .pte step is OOM-killed
+        write_result(f"export_trt_{args.method}" + (f"_{args.quant}" if args.quant != "none" else ""), result)  # partial record in case the .pte step is OOM-killed
 
     if not args.skip_pte:
         import gc
@@ -184,7 +185,7 @@ def main():
 
     result["files_MB"] = {p.name: round(p.stat().st_size / 1e6, 1) for p in sorted(out_dir.iterdir())}
     result["memory"] = mem_report("end")
-    write_result(f"export_trt_{args.method}" + ("_fp8" if args.quant == "fp8" else ""), result)
+    write_result(f"export_trt_{args.method}" + (f"_{args.quant}" if args.quant != "none" else ""), result)
 
 
 if __name__ == "__main__":

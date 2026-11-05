@@ -67,4 +67,16 @@ run bench_trt_direct_fp8     $TRT -m pi05_edge.bench_trt_direct --dir models/trt
 run bench_et_trt_fp8         $TRT -m pi05_edge.bench_et --dir models/trt_fp8 --label et_trt_1.4.1_fp8
 run eager_bf16_fp8_modelopt  $TRT -m pi05_edge.bench_eager --dtype bfloat16 --quant fp8_modelopt --iters 3   # numerics reference only
 
+# --- NVFP4 (W4A4, block 16) on the same linears; TensorRT FP4 GEMMs need Blackwell (sm_100/sm_120)
+run eager_bf16_fp4_torchao   $TRT -m pi05_edge.bench_eager --dtype bfloat16 --quant fp4_torchao --iters 5
+mkdir -p models/trt_fp4
+ln -sfn "$PWD/models/trt/vision" models/trt_fp4/vision
+ln -sfn "$PWD/models/trt/prefix_embed" models/trt_fp4/prefix_embed
+for m in denoise_step prefix_l0 prefix_l1 prefix_l2 denoise10; do
+  run export_trt_fp4_$m      $TRT -m pi05_edge.export_trt --method $m --out models/trt_fp4 --quant fp4
+done
+run bench_trt_direct_fp4     $TRT -m pi05_edge.bench_trt_direct --dir models/trt_fp4 --label trt_direct_fp4
+run bench_et_trt_fp4         $TRT -m pi05_edge.bench_et --dir models/trt_fp4 --label et_trt_1.4.1_fp4
+run eager_bf16_fp4_modelopt  $TRT -m pi05_edge.bench_eager --dtype bfloat16 --quant fp4_modelopt --iters 3   # numerics reference only
+
 $ET15 -m pi05_edge.report
