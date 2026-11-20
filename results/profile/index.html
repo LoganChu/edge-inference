@@ -1,0 +1,775 @@
+<title>π₀.5 Cycle Profile</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column of a lab report; figures span the column, findings lead, method closes. */
+:root {
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #75736d;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10); --wash: #f0efec;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --other: #b4b2aa;
+  --busy: #256abf; --idle: #a9a7a0;
+  --seq0: #f3f5f8; --seq1: #cde2fb; --seq2: #86b6ef; --seq3: #3987e5; --seq4: #1c5cab; --seq5: #0d366b;
+  --critical: #d03b3b; --serious: #ec835a; --warning: #fab219;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: #232322;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --other: #5c5b56;
+  --busy: #3987e5; --idle: #6b6a64;
+  --seq0: #1f2227; --seq1: #104281; --seq2: #1c5cab; --seq3: #2a78d6; --seq4: #6da7ec; --seq5: #cde2fb;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: #232322;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --other: #5c5b56;
+  --busy: #3987e5; --idle: #6b6a64;
+  --seq0: #1f2227; --seq1: #104281; --seq2: #1c5cab; --seq3: #2a78d6; --seq4: #6da7ec; --seq5: #cde2fb;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4.6vw, 40px); line-height: 1.12; }
+h2 { font-size: 22px; line-height: 1.25; }
+h3 { font-size: 16px; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.lede { color: var(--ink-2); font-size: 16.5px; }
+.muted { color: var(--muted); }
+header { display: grid; gap: 14px; }
+
+/* headline comparison */
+.compare { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.compare th, .compare td { text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+.compare th:first-child, .compare td:first-child { text-align: left; }
+.compare thead th { font-size: 12px; font-weight: 500; color: var(--ink-2); letter-spacing: 0.02em; }
+.compare td.big { font-size: 22px; font-weight: 600; }
+.compare td .unit { font-size: 13px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.scroll { overflow-x: auto; min-width: 0; }
+
+/* findings */
+.findings { display: grid; gap: 0; counter-reset: f; list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--grid); }
+.finding { display: grid; grid-template-columns: 7.2rem 1fr; gap: 6px 22px; padding: 18px 0; border-bottom: 1px solid var(--grid); }
+.finding .cost { font-variant-numeric: tabular-nums; }
+.finding .cost b { display: block; font-size: 24px; font-weight: 600; line-height: 1.1; }
+.finding .cost span { font-size: 12px; color: var(--ink-2); }
+.finding h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.finding p + p { margin-top: 6px; }
+.finding .body { display: grid; gap: 6px; min-width: 0; }
+.tag { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--ink-2); background: var(--surface); }
+.fix { color: var(--ink-2); }
+.fix::before { content: "Fix direction: "; font-weight: 600; color: var(--ink); }
+@media (max-width: 560px) { .finding { grid-template-columns: 1fr; } .finding .cost b { display: inline; margin-right: 6px; } }
+
+/* figures */
+figure { margin: 0; display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 14px; min-width: 0; }
+figcaption { display: grid; gap: 4px; }
+figcaption .fig { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+figcaption .ttl { font-weight: 600; font-size: 15.5px; }
+figcaption .sub { color: var(--ink-2); font-size: 13.5px; max-width: 80ch; }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg, .chart canvas { display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.sw.hatch { background: repeating-linear-gradient(135deg, var(--idle) 0 2px, transparent 2px 5px); border: 1px solid var(--idle); }
+.ramp { width: 120px; height: 10px; border-radius: 2px; display: inline-block; }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.panel-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+
+/* tables */
+table.data { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; vertical-align: middle; white-space: nowrap; }
+table.data th { font-weight: 500; color: var(--ink-2); font-size: 12px; }
+table.data td.l, table.data th.l { text-align: left; }
+table.data td.k { font-family: var(--mono); font-size: 12px; white-space: normal; min-width: 16rem; max-width: 26rem; word-break: break-word; }
+table.data td.heat { color: var(--ink); }
+.minibar { display: inline-block; height: 8px; border-radius: 0 2px 2px 0; background: var(--busy); vertical-align: middle; margin-left: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 0; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink-2); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.tabs button:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 6px 24px rgba(0,0,0,0.12); max-width: 320px; }
+.tip b { font-weight: 600; }
+.tip .k { font-family: var(--mono); font-size: 11.5px; word-break: break-word; }
+.pending { border: 1px dashed var(--axis); border-radius: 10px; padding: 18px; color: var(--ink-2); }
+.method { display: grid; gap: 10px; color: var(--ink-2); font-size: 14px; }
+.method pre { font-family: var(--mono); font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 0; color: var(--ink); }
+.method ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; max-width: 80ch; }
+@media (prefers-reduced-motion: no-preference) { .tip { transition: opacity 80ms; } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">π₀.5 · RTX 5090 (GB202, 170 SMs) · batch 1 · bf16 · one control cycle = vision + prefix + 10 denoising steps</div>
+  <h1>Where the control cycle goes: PyTorch eager vs. TensorRT</h1>
+  <p class="lede">Nsight Systems traced ten control cycles of each path, with the CUDA API, every kernel and copy, and GPU hardware activity sampled every 20&nbsp;µs. Nsight Compute then replayed each kernel of vision, the prefix and one denoising step to read its hardware counters (the other nine steps repeat the same kernels). Both paths run the same LIBERO observation and the same noise through the export units in <code>pi05_edge/model.py</code>.</p>
+  <div class="scroll"><table class="compare" id="compare"></table></div>
+</header>
+
+<section>
+  <h2>Bottlenecks, ranked by what they cost per cycle</h2>
+  <ol class="findings" id="findings"></ol>
+</section>
+
+<section>
+  <h2>The cycle on the GPU</h2>
+  <figure>
+    <figcaption><span class="fig">Fig. 1</span><span class="ttl">GPU time per stage: executing kernels vs. waiting</span>
+      <span class="sub">Each stage's window runs from its first kernel to the next stage's first kernel. Hatched time is the GPU sitting idle, almost all of it waiting for the host to launch the next kernel. Mean of 10 traced cycles.</span></figcaption>
+    <div class="legend"><span><i class="sw" style="background:var(--busy)"></i>GPU executing</span><span><i class="sw hatch"></i>GPU idle</span></div>
+    <div class="chart" id="anatomy"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Fig. 2</span><span class="ttl">One cycle, kernel by kernel</span>
+      <span class="sub">Top band: the host's NVTX stage ranges (what Python is doing). Lower band: GPU occupancy per pixel column, colored by kernel category; a full-height column means the GPU was busy for that whole slice. Both paths share one time axis. The median cycle of each trace.</span></figcaption>
+    <div class="legend" id="cat-legend"></div>
+    <div class="chart" id="timeline"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Fig. 3</span><span class="ttl">One denoising step, zoomed</span>
+      <span class="sub">The fifth of ten steps, on a shared axis. Eager launches 1,222 kernels per step, and the gaps between them are host time. TensorRT runs 248 kernels per step back to back, and a single attention kernel per layer fills most of the step.</span></figcaption>
+    <div class="chart" id="zoom"></div>
+  </figure>
+</section>
+
+<section>
+  <h2>What the hardware is doing</h2>
+  <figure>
+    <figcaption><span class="fig">Fig. 4</span><span class="ttl">GPU activity over one cycle (Nsight Systems GPU metrics, 20 µs samples in 100 µs bins)</span>
+      <span class="sub">Darker means closer to the unit's peak. <i>SMs active</i>: share of the 170 SMs with any warp resident. <i>SM issue</i>: instruction-issue slots used. <i>Tensor active</i>: tensor-pipe cycles active. <i>DRAM read</i>: share of peak read bandwidth. <i>Warps in flight</i>: resident warps vs. the 48-warp-per-SM limit.</span></figcaption>
+    <div class="legend"><span>0%</span><i class="ramp" id="ramp"></i><span>100% of peak</span></div>
+    <div class="chart" id="heat"></div>
+    <div class="scroll"><table class="data" id="stage-metrics"></table></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Fig. 5</span><span class="ttl">Kernel time by category, per stage</span>
+      <span class="sub">Milliseconds per cycle. The denoising rows are all ten steps together. The hatched tail is idle time inside the stage's GPU window.</span></figcaption>
+    <div class="legend" id="cat-legend-2"></div>
+    <div class="chart" id="cats"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Fig. 6</span><span class="ttl">How long the kernels run</span>
+      <span class="sub" id="hist-sub">Kernels per cycle by duration. A kernel shorter than the ~2 µs it takes to launch cannot keep the GPU fed from Python.</span></figcaption>
+    <div class="panels" id="hist"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Fig. 7</span><span class="ttl">The kernels that take the time</span>
+      <span class="sub">Top kernels by milliseconds per cycle in the Nsight Systems trace (boost clocks). Calls are per cycle, so a denoising-step kernel that runs once per layer shows 180 (18 layers × 10 steps).</span></figcaption>
+    <div class="tabs" role="tablist" id="tk-tabs"></div>
+    <div class="scroll"><table class="data" id="topk"></table></div>
+  </figure>
+</section>
+
+<section id="ncu-section">
+  <h2>Per-kernel hardware counters (Nsight Compute)</h2>
+  <div id="ncu-body"><div class="pending">The Nsight Compute replay is still running. It covers every kernel of one cycle: vision, prefix and one denoising step, the other nine steps being repeats of it. This section fills in when it finishes.</div></div>
+</section>
+
+<section class="method">
+  <h2 style="color:var(--ink)">How this was measured</h2>
+  <ul>
+    <li>Workload: <code>pi05_edge/profile_run.py</code>. 5 warm-up cycles, then cycles inside a <code>cudaProfilerStart/Stop</code> window with NVTX ranges per stage. Model loading is never captured.</li>
+    <li>Nsight Systems 2026.5.1: CUDA + NVTX + OS runtime trace, 10 cycles per path. A second run per path, as root, adds GPU-metrics sampling at 50 kHz (3 cycles). Every GPU activity is assigned to the stage whose NVTX range contains its launch call.</li>
+    <li>Tracing overhead is small. Traced cycles: <span id="m-traced"></span>. Benchmark medians in <code>results/summary.md</code>: 180 ms eager bf16, 62 ms TensorRT.</li>
+    <li>Nsight Compute 2026.3.1: kernel replay, caches flushed per pass, clocks locked to base. Its durations are therefore longer than the trace's, and its percentages are of the peak at that clock.</li>
+    <li>Raw reports are in <code>profiles/</code> (git-ignored). The numbers on this page come from <code>results/profile/profile.json</code>, written by <code>pi05_edge/profile_analyze.py</code>.</li>
+  </ul>
+<pre>scripts/profile.sh trace        # nsys timelines (no special rights)
+sudo scripts/profile.sh hw      # nsys GPU metrics + ncu counters (root-only on this box)
+scripts/profile.sh analyze      # -> results/profile/profile.json</pre>
+</section>
+</main>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const CATS = ["GEMM (tensor cores)", "GEMM/GEMV (fp32 CUDA cores)", "Attention", "Elementwise, norms & reductions", "Casts & copies"];
+// analyzer categories -> the five shown here
+const CAT_MAP = {"GEMM (tensor cores)": 0, "GEMM/GEMV (fp32 CUDA cores)": 1, "Attention": 2, "Normalization": 3, "Elementwise": 3,
+                 "Reductions": 3, "Other": 3, "Casts & copies": 4};
+const STAGE_LABEL = {vision: "Vision (SigLIP)", prefix: "Prefix (Gemma-2B prefill)", denoise_step: "10 denoising steps (Gemma-300M)", glue: "glue"};
+const PATH_LABEL = {eager: "PyTorch eager", trt: "TensorRT"};
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const catColor = i => tok(`--c${i + 1}`);
+const fmt = (v, d = 1) => v == null ? "–" : v.toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+function hatchPattern(svg, id) {
+  const defs = svgEl("defs", {}, svg);
+  const p = svgEl("pattern", {id, width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(135)"}, defs);
+  svgEl("rect", {width: 5, height: 5, fill: tok("--surface")}, p);
+  svgEl("rect", {width: 2, height: 5, fill: tok("--idle")}, p);
+}
+function niceTicks(max, target = 6) {
+  const raw = max / target, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => raw <= s);
+  const ticks = [0];  // always end on the first tick at or past max, so marks never overrun the axis
+  while (ticks[ticks.length - 1] < max - 1e-9) ticks.push(+(ticks[ticks.length - 1] + step).toFixed(6));
+  return ticks;
+}
+function axisX(svg, x, ticks, y, h, unit) {
+  for (const t of ticks) {
+    svgEl("line", {x1: x(t), x2: x(t), y1: y - h, y2: y, stroke: tok("--grid"), "stroke-width": 1}, svg);
+    const tx = svgEl("text", {x: x(t), y: y + 16, "text-anchor": "middle", "font-size": 11.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg);
+    tx.textContent = t.toLocaleString() + (t === ticks[ticks.length - 1] && unit ? " " + unit : "");
+  }
+}
+function legendCats(id, withIdle) {
+  const el = document.getElementById(id);
+  el.innerHTML = CATS.map((c, i) => `<span><i class="sw" style="background:var(--c${i + 1})"></i>${c}</span>`).join("") +
+    (withIdle ? `<span><i class="sw hatch"></i>GPU idle</span>` : "");
+}
+function rampColor(v) {  // 0..100 -> sequential blue
+  const stops = [0, 1, 2, 3, 4, 5].map(i => tok(`--seq${i}`));
+  const t = Math.max(0, Math.min(1, v / 100)) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(t)), f = t - i;
+  const a = hex(stops[i]), b = hex(stops[i + 1]);
+  return `rgb(${a.map((c, j) => Math.round(c + (b[j] - c) * f)).join(",")})`;
+}
+function hex(h) { h = h.replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function inkOn(v) { return v > 55 ? (document.documentElement.matches('[data-theme="dark"]') || (matchMedia("(prefers-color-scheme: dark)").matches && !document.documentElement.matches('[data-theme="light"]')) ? "#0b0b0b" : "#ffffff") : tok("--ink"); }
+
+let D = null;
+
+// ------------------------------------------------------------------ header + findings
+function renderCompare() {
+  const e = D.eager.trace, t = D.trt.trace;
+  const row = (label, f, unit, d = 1) => `<tr><td>${label}</td><td class="big">${fmt(f(e), d)}<span class="unit">${unit}</span></td><td class="big">${fmt(f(t), d)}<span class="unit">${unit}</span></td></tr>`;
+  const idle = x => x.stages.vision.idle_ms + x.stages.prefix.idle_ms + x.stages.denoise_step.idle_ms;
+  document.getElementById("compare").innerHTML = `<thead><tr><th></th><th>PyTorch eager bf16</th><th>Direct TensorRT bf16</th></tr></thead><tbody>
+    ${row("Control cycle (median of 10, traced)", x => x.cycle_wall_ms.median, "ms")}
+    ${row("GPU executing kernels", x => x.cycle_gpu_busy_ms, "ms")}
+    ${row("GPU idle inside the cycle", idle, "ms")}
+    ${row("Kernel launches per cycle", x => x.kernels_per_cycle, "", 0)}
+    ${row("Kernel launches per denoising step", x => x.stages.denoise_step.n_kernels / 10, "", 0)}</tbody>`;
+  document.getElementById("m-traced").textContent = `${fmt(e.cycle_wall_ms.median)} ms eager, ${fmt(t.cycle_wall_ms.median)} ms TensorRT`;
+}
+
+function renderFindings() {
+  const e = D.eager.trace, t = D.trt.trace, ge = D.eager.gpu_metrics?.stage_means, gt = D.trt.gpu_metrics?.stage_means;
+  const ek = n => e.top_kernels.find(k => k.name.includes(n)), tk = n => t.top_kernels.find(k => k.name.includes(n));
+  const sgemm = ek("simt_sgemm"), mha = tk("_gemm_mha_v2"), gemv = tk("gemvx");
+  const firstSync = e.timeline.syncs.reduce((m, s) => Math.max(m, s[1]), 0) / 1e3;
+  const prefixGemm = t.top_kernels.filter(k => k.stage === "prefix" && k.cat === "GEMM (tensor cores)").reduce((s, k) => s + k.ms_per_cycle, 0);
+  const tDen = t.stages.denoise_step.window_ms;
+  const nc = D.trt.ncu, ne = D.eager.ncu;
+  const mhaN = nc?.kernels.find(k => k.name.includes("_gemm_mha_v2") && k.stage === "denoise_step");
+  const gemvN = nc?.kernels.find(k => k.name.includes("gemvx"));
+  const sgN = ne?.kernels.find(k => k.name.includes("simt_sgemm"));
+  const items = [
+    {path: "Eager", sev: "critical", cost: e.stages.denoise_step.host_bound_ms, title: "The denoising loop waits on Python",
+     body: [`The ten expert steps occupy ${fmt(e.stages.denoise_step.window_ms)} ms of GPU time, but kernels execute for only ${fmt(e.stages.denoise_step.busy_ms)} ms of it. Each step launches ${fmt(e.stages.denoise_step.n_kernels / 10, 0)} kernels, and ${fmt(100 * (e.duration_hist.denoise_step.count[0] + e.duration_hist.denoise_step.count[1]) / e.stages.denoise_step.n_kernels, 0)}% of them finish in under 5 µs. The host needs about ${fmt(1e3 * e.stages.denoise_step.window_ms / e.stages.denoise_step.n_kernels, 1)} µs per kernel: ATen dispatch plus a ~2.3 µs <code>cudaLaunchKernel</code>. During these steps only ${fmt(ge?.denoise_step.sm_active, 0)}% of SMs hold a warp, and the tensor pipe is ${fmt(ge?.denoise_step.tensor_active, 0)}% active.`],
+     fix: "take Python out of the step: CUDA Graphs or torch.compile(mode=\"reduce-overhead\") on the expert. Compiled, the same step runs in 2.8 ms (ExecuTorch + CUDA) or 3.0 ms (TensorRT)."},
+    {path: "Eager", sev: "serious", cost: firstSync, title: "A pageable copy forces a stream sync every step",
+     body: [`<code>embed_suffix</code> builds the action attention mask with <code>torch.tensor(att_masks, device=cuda)</code> from a Python list (<code>lerobot/policies/pi05/modeling_pi05.py:559</code>). That is a pageable host→device copy, which ATen follows with <code>cudaStreamSynchronize</code>: ${fmt(e.syncs_per_cycle["denoise_step|Stream sync"]?.count, 0)} per cycle. The first one blocks the host for ${fmt(firstSync)} ms while vision and the prefix drain. In that time the host could have queued the first expert steps behind the prefill. The later syncs return in microseconds, because by then the GPU is already starved.`],
+     fix: "build the 50-element mask once on the device (or in pinned memory) and reuse it across steps."},
+    {path: "Eager", sev: "serious", cost: sgemm?.ms_per_cycle, title: "The fp32 vision tower runs on CUDA cores",
+     body: [`${fmt(sgemm?.ms_per_cycle)} ms of the ${fmt(e.stages.vision.window_ms)} ms vision stage is one kernel, <code>cutlass_80_simt_sgemm</code> (${fmt(sgemm?.per_cycle, 0)} calls). It is a full-precision GEMM on the scalar FP32 units. The tensor pipe is ${fmt(ge?.vision.tensor_active, 0)}% active during vision, against ${fmt(gt?.vision.tensor_active, 0)}% for TensorRT, which runs the same tower in TF32 in ${fmt(t.stages.vision.window_ms)} ms.` +
+       (sgN ? ` Nsight Compute shows it is not even saturating those units: ${fmt(sgN.sm_pct, 0)}% of SM throughput, ${fmt(sgN.occ_theoretical_pct, 0)}% theoretical occupancy (limited by ${{regs: "registers", smem: "shared memory", warps: "warps per SM", blocks: "blocks per SM"}[sgN.occ_limiter] || "launch shape"}), top stall <i>${(sgN.top_stall || "").replace(/_/g, " ")}</i>.` : "")],
+     fix: "allow TF32 (results/summary.md: eager vision drops to 16 ms, action error unchanged), or run the tower in bf16."},
+    {path: "TensorRT", sev: "critical", cost: mha?.ms_per_cycle, title: "Expert attention fills 8 of 170 SMs",
+     body: [`One fused attention kernel, <code>_gemm_mha_v2</code>, runs once per layer per step: ${fmt(mha?.avg_us)} µs × ${fmt(mha?.per_cycle, 0)} calls = ${fmt(mha?.ms_per_cycle)} ms per cycle, ${fmt(100 * (mha?.ms_per_cycle || 0) / tDen, 0)}% of TensorRT's denoising time. Its grid is <b>${mha?.grid} CTAs of ${mha?.block} threads</b>, one per attention head. The 50 action tokens fit in a single query tile, and each CTA walks all 1,018 keys alone. During the denoising steps only ${fmt(gt?.denoise_step.sm_active, 0)}% of SMs are active.` +
+       (mhaN ? ` Nsight Compute: ${fmt(mhaN.sm_pct, 0)}% of SM throughput, ${fmt(mhaN.mem_pct, 0)}% of memory throughput, ${fmt(mhaN.tensor_pct, 0)}% of the tensor-core peak, ${fmt(mhaN.waves, 2)} waves per SM.` : "")],
+     fix: "split the key dimension across CTAs (flash-decoding style split-KV), or batch several observations per step so the grid grows."},
+    {path: "TensorRT", sev: "warning", cost: prefixGemm, title: "The prefix is GEMM-bound, and that is real work",
+     body: [`The 2.5 B-parameter prefill over 968 tokens spends ${fmt(prefixGemm)} ms in tensor-core GEMMs. The tensor pipe is ${fmt(gt?.prefix.tensor_active, 0)}% active and ${fmt(gt?.prefix.sm_active, 0)}% of SMs are busy. Neither the launch path nor the memory system limits this stage.`],
+     fix: "fewer bits per multiply. FP8 brings this stage to 15.9 ms and NVFP4 to 8.8 ms (results/summary.md), at a measurable accuracy cost."},
+    {path: "TensorRT", sev: "warning", cost: gemv?.ms_per_cycle, title: "Time conditioning re-reads fp32 weights every step",
+     body: [`Three fp32 GEMVs per step (${fmt(gemv?.avg_us)} µs each, ${fmt(gemv?.ms_per_cycle)} ms per cycle, ${fmt(100 * (gemv?.ms_per_cycle || 0) / tDen, 0)}% of denoising) compute the AdaRMS modulation from the timestep embedding. Their inputs depend only on <i>t</i>, and the ten values of <i>t</i> are fixed. Eager pays the same cost as 37 smaller GEMVs per step.` +
+       (gemvN ? ` Nsight Compute: ${fmt(gemvN.dram_pct, 0)}% of peak DRAM bandwidth (${fmt(gemvN.dram_GBps, 0)} GB/s at base clock), a pure weight stream.` : "")],
+     fix: "precompute the ten modulation vectors once. The fused 10-step FP8/FP4 engines already constant-fold this path (README, FP8 section)."},
+  ];
+  items.sort((a, b) => (b.cost || 0) - (a.cost || 0));
+  const sevLabel = {critical: "Critical", serious: "Serious", warning: "Moderate"};
+  document.getElementById("findings").innerHTML = items.map(it => `
+    <li class="finding"><div class="cost"><b>${fmt(it.cost)} ms</b><span>per cycle</span></div>
+      <div class="body"><h3>${it.title} <span class="tag">${it.path}</span> <span class="tag" style="border-color:var(--${it.sev});">${sevLabel[it.sev]}</span></h3>
+        ${it.body.map(b => `<p>${b}</p>`).join("")}<p class="fix">${it.fix}</p></div></li>`).join("");
+}
+
+// ------------------------------------------------------------------ Fig 1
+function renderAnatomy() {
+  const host = document.getElementById("anatomy"); host.innerHTML = "";
+  const W = host.clientWidth, labelW = W < 520 ? 0 : 118, padR = 72, rowH = 26, gapRow = 54;
+  const paths = ["eager", "trt"], H = 30 + paths.length * (rowH + gapRow) + 6;
+  const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": "GPU busy and idle time per stage for each path"}, host);
+  hatchPattern(svg, "hatch1");
+  const max = Math.max(...paths.map(p => D[p].trace.cycle_wall_ms.median));
+  const ticks = niceTicks(max, W < 520 ? 4 : 7);
+  const x = v => labelW + (v / ticks[ticks.length - 1]) * (W - labelW - padR);
+  const top = 30;
+  paths.forEach((p, i) => {
+    const tr = D[p].trace, y = top + i * (rowH + gapRow) + 18;
+    const lab = svgEl("text", {x: labelW ? 0 : 0, y: labelW ? y + rowH / 2 + 4 : y - 22, "font-size": 13, "font-weight": 600, fill: tok("--ink"), "font-family": tok("--sans")}, svg);
+    lab.textContent = PATH_LABEL[p];
+    let cur = tr.launch_lead_ms;
+    for (const s of ["vision", "prefix", "denoise_step"]) {
+      const st = tr.stages[s], x0 = cur;
+      for (const [kind, v] of [["busy", st.busy_ms], ["idle", st.idle_ms]]) {
+        if (v <= 0) continue;
+        const r = svgEl("rect", {x: x(cur), y, width: Math.max(1, x(cur + v) - x(cur) - (kind === "idle" ? 2 : 0)), height: rowH,
+          fill: kind === "busy" ? tok("--busy") : "url(#hatch1)", rx: 2}, svg);
+        r.addEventListener("mousemove", ev => showTip(ev, `<b>${PATH_LABEL[p]} · ${STAGE_LABEL[s]}</b><br>${kind === "busy" ? "GPU executing" : "GPU idle"}: ${fmt(v, 2)} ms<br>stage window ${fmt(st.window_ms, 2)} ms · ${fmt(st.n_kernels, 0)} kernels` + (kind === "idle" ? `<br>waiting on host launches: ${fmt(st.host_bound_ms, 2)} ms` : "")));
+        r.addEventListener("mouseleave", hideTip);
+        cur += v;
+      }
+      const lx = x(x0), lw = x(cur) - x(x0);
+      const short = {vision: "vision", prefix: "prefix", denoise_step: "10 steps"}[s];
+      if (lw > 34) {
+        const t = svgEl("text", {x: lx + 1, y: y - 6, "font-size": 11.5, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg);
+        t.textContent = lw > 90 ? `${short} ${fmt(st.window_ms)} ms` : short;
+      }
+      svgEl("line", {x1: x(cur) - 1, x2: x(cur) - 1, y1: y - 3, y2: y + rowH + 3, stroke: tok("--axis"), "stroke-width": 1}, svg);
+    }
+    const end = svgEl("text", {x: Math.min(x(cur) + 6, W - padR), y: y + rowH / 2 + 4, "font-size": 12.5, "font-weight": 600, fill: tok("--ink"), "font-family": tok("--sans"), "text-anchor": x(cur) + 70 > W ? "end" : "start"}, svg);
+    end.textContent = `${fmt(tr.cycle_wall_ms.median)} ms`;
+  });
+  axisX(svg, x, ticks, H - 18, 0, "ms");
+  svg.setAttribute("height", H + 4);
+}
+
+// ------------------------------------------------------------------ Fig 2 / 3 (canvas occupancy timeline)
+function drawOccupancy(canvasHost, lanes, t0, t1, opts = {}) {
+  canvasHost.innerHTML = "";
+  const W = canvasHost.clientWidth, labelW = W < 520 ? 0 : 118, padR = 12;
+  const laneH = 46, cpuH = 14, gap = W < 520 ? 44 : 30, axisH = 26;
+  const H = lanes.length * (cpuH + 6 + laneH + gap) + axisH;
+  const dpr = devicePixelRatio || 1;
+  const cv = document.createElement("canvas");
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px";
+  cv.setAttribute("role", "img"); cv.setAttribute("aria-label", opts.aria || "GPU occupancy timeline");
+  canvasHost.appendChild(cv);
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const plotW = W - labelW - padR, span = t1 - t0, x = us => labelW + ((us - t0) / span) * plotW;
+  const font = (sz, w = 400) => `${w} ${sz}px ${tok("--sans")}`;
+  const cols = Math.max(1, Math.floor(plotW));
+  const store = [];
+  lanes.forEach((ln, li) => {
+    const yTop = li * (cpuH + 6 + laneH + gap) + (W < 520 ? 18 : 4);
+    g.fillStyle = tok("--ink"); g.font = font(13, 600); g.textBaseline = "middle";
+    if (labelW) {
+      g.fillText(ln.label, 0, yTop + cpuH + 6 + laneH / 2);
+      g.fillStyle = tok("--muted"); g.font = font(11);
+      g.fillText("host", labelW - 32, yTop + cpuH / 2 + 0.5); g.fillText("GPU", labelW - 32, yTop + cpuH + 6 + laneH - 8);
+    } else g.fillText(ln.label, 0, yTop - 10);
+    // host band: NVTX stage ranges
+    ln.cpu.forEach(([name, s, d], k) => {
+      const a = Math.max(x(s), labelW), b = Math.min(x(s + d), W - padR);
+      if (b <= labelW || a >= W - padR) return;
+      g.fillStyle = k % 2 ? tok("--grid") : tok("--axis"); g.globalAlpha = 0.9;
+      g.fillRect(a, yTop, Math.max(1, b - a - 1), cpuH); g.globalAlpha = 1;
+    });
+    // blocking syncs on the host band
+    (ln.syncs || []).forEach(([s, d]) => {
+      if (d < 200) return;
+      const a = Math.max(x(s), labelW), b = Math.min(x(s + d), W - padR);
+      g.save(); g.beginPath(); g.rect(a, yTop, b - a, cpuH); g.clip();
+      g.strokeStyle = tok("--critical"); g.lineWidth = 1.5;
+      for (let xx = a - cpuH; xx < b + cpuH; xx += 5) { g.beginPath(); g.moveTo(xx, yTop + cpuH); g.lineTo(xx + cpuH, yTop); g.stroke(); }
+      g.restore();
+      const msg = b - a > 230 ? "host blocked in cudaStreamSynchronize" : "host blocked in sync";
+      g.font = font(11, 500);
+      if (b - a > g.measureText(msg).width + 16) {
+        const tw = g.measureText(msg).width;
+        g.fillStyle = tok("--surface"); g.fillRect(a + 4, yTop + 1, tw + 6, cpuH - 2);
+        g.fillStyle = tok("--ink"); g.fillText(msg, a + 7, yTop + cpuH / 2 + 0.5);
+      }
+    });
+    // GPU occupancy columns
+    const base = yTop + cpuH + 6 + laneH;
+    g.fillStyle = tok("--wash"); g.fillRect(labelW, yTop + cpuH + 6, plotW, laneH);
+    const per = Array.from({length: cols}, () => new Float64Array(5));
+    const colUs = span / cols;
+    for (const [s, d, c] of ln.gpu) {
+      const ci = CAT_MAP[ln.cats[c]];
+      let a = s, e = s + d;
+      if (e <= t0 || a >= t1) continue;
+      a = Math.max(a, t0); e = Math.min(e, t1);
+      let i0 = Math.floor((a - t0) / colUs), i1 = Math.min(cols - 1, Math.floor((e - t0) / colUs));
+      for (let i = i0; i <= i1; i++) {
+        const cs = t0 + i * colUs, ce = cs + colUs;
+        per[i][ci] += Math.max(0, Math.min(e, ce) - Math.max(a, cs));
+      }
+    }
+    for (let i = 0; i < cols; i++) {
+      let yy = base;
+      for (let c = 0; c < 5; c++) {
+        const h = Math.min(1, per[i][c] / colUs) * laneH;
+        if (h <= 0) continue;
+        g.fillStyle = catColor(c); g.fillRect(labelW + i, yy - h, 1.02, h); yy -= h;
+      }
+    }
+    g.strokeStyle = tok("--axis"); g.lineWidth = 1; g.beginPath(); g.moveTo(labelW, base + 0.5); g.lineTo(W - padR, base + 0.5); g.stroke();
+    store.push({yTop, base, per, colUs, ln});
+  });
+  // axis
+  const ticks = niceTicks(span / 1e3, W < 520 ? 4 : 8).filter(t => t * 1e3 <= span + 1e-6);
+  g.font = font(11.5); g.fillStyle = tok("--muted"); g.textAlign = "center"; g.textBaseline = "alphabetic";
+  ticks.forEach((t, i) => {
+    const xx = labelW + (t * 1e3 / span) * plotW;
+    g.fillText(t.toLocaleString() + (i === ticks.length - 1 ? " ms" : ""), Math.min(xx, W - padR - 14), H - 6);
+    g.strokeStyle = tok("--grid"); g.beginPath(); g.moveTo(xx + 0.5, H - axisH + 2); g.lineTo(xx + 0.5, H - axisH + 7); g.stroke();
+  });
+  g.textAlign = "start";
+  cv.addEventListener("mousemove", ev => {
+    const r = cv.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    const i = Math.floor(px - labelW);
+    const lane = store.find(s => py >= s.yTop - 4 && py <= s.base + 4);
+    if (!lane || i < 0 || i >= cols) return hideTip();
+    const tUs = t0 + (i + 0.5) * lane.colUs;
+    const busy = lane.per[i].reduce((a, b) => a + b, 0);
+    const stage = lane.ln.cpu.find(([n, s, d]) => tUs >= s && tUs <= s + d);
+    const parts = [...lane.per[i]].map((v, c) => [v, c]).filter(([v]) => v > 0).sort((a, b) => b[0] - a[0])
+      .map(([v, c]) => `<span><i class="dot" style="background:var(--c${c + 1})"></i>${CATS[c]} ${fmt(100 * v / lane.colUs, 0)}%</span>`).join("<br>");
+    showTip(ev, `<b>${lane.ln.label}</b> · ${fmt(tUs / 1e3, 2)} ms<br>GPU busy ${fmt(Math.min(100, 100 * busy / lane.colUs), 0)}% of this ${fmt(lane.colUs, lane.colUs < 10 ? 1 : 0)} µs slice` +
+      (stage ? `<br>host in: ${STAGE_LABEL[stage[0]] || stage[0]}` : "") + (parts ? `<br>${parts}` : ""));
+  });
+  cv.addEventListener("mouseleave", hideTip);
+}
+
+function renderTimeline() {
+  const lanes = ["eager", "trt"].map(p => {
+    const tl = D[p].trace.timeline;
+    return {label: PATH_LABEL[p], gpu: tl.gpu, cats: tl.categories, cpu: tl.cpu_stages, syncs: tl.syncs, wall: tl.wall_ms};
+  });
+  const end = Math.max(...lanes.map(l => l.wall)) * 1e3;
+  drawOccupancy(document.getElementById("timeline"), lanes, 0, end, {aria: "GPU occupancy over one control cycle, eager and TensorRT"});
+}
+
+function renderZoom() {
+  const step = 4;
+  const lanes = ["eager", "trt"].map(p => {
+    const tl = D[p].trace.timeline, si = tl.stages.indexOf("denoise_step");
+    const ks = tl.gpu.filter(k => k[3] === si && k[4] === step);
+    const nxt = tl.gpu.find(k => k[3] === si && k[4] === step + 1);
+    const s0 = ks[0][0], s1 = nxt ? nxt[0] : Math.max(...ks.map(k => k[0] + k[1]));
+    return {label: PATH_LABEL[p], gpu: ks.map(k => [k[0] - s0, k[1], k[2]]), cats: tl.categories, cpu: [["denoise_step", 0, s1 - s0]], syncs: [], dur: s1 - s0, n: ks.length};
+  });
+  const end = Math.max(...lanes.map(l => l.dur));
+  drawOccupancy(document.getElementById("zoom"), lanes, 0, end, {aria: "GPU occupancy during one denoising step"});
+}
+
+// ------------------------------------------------------------------ Fig 4
+function renderHeat() {
+  document.getElementById("ramp").style.background = `linear-gradient(90deg, ${[0, 20, 40, 60, 80, 100].map(v => rampColor(v)).join(",")})`;
+  const host = document.getElementById("heat"); host.innerHTML = "";
+  const rows = [["sm_active", "SMs active"], ["sm_issue", "SM issue"], ["tensor_active", "Tensor active"], ["dram_read", "DRAM read"], ["warps_in_flight", "Warps in flight"]];
+  const W = host.clientWidth, labelW = W < 520 ? 92 : 118, padR = 12, rowH = 15, gapP = 40, axisH = 24;
+  const paths = ["eager", "trt"].filter(p => D[p].gpu_metrics);
+  const H = paths.length * (rows.length * (rowH + 2) + gapP + 14) + axisH;
+  const dpr = devicePixelRatio || 1, cv = document.createElement("canvas");
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px";
+  cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "GPU hardware activity over one cycle");
+  host.appendChild(cv);
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const maxMs = Math.max(...paths.map(p => D[p].gpu_metrics.cycle_ms)), plotW = W - labelW - padR;
+  const x = ms => labelW + (ms / maxMs) * plotW;
+  const store = [];
+  paths.forEach((p, pi) => {
+    const gm = D[p].gpu_metrics, y0 = pi * (rows.length * (rowH + 2) + gapP + 14) + 16;
+    g.font = `600 13px ${tok("--sans")}`; g.fillStyle = tok("--ink"); g.textBaseline = "alphabetic";
+    g.fillText(PATH_LABEL[p], 0, y0 - 4);
+    // stage marks
+    g.font = `400 11px ${tok("--sans")}`; g.fillStyle = tok("--ink-2");
+    let lastLabelEnd = -1;
+    gm.stage_marks.forEach(([s, ms], k) => {
+      const xx = x(ms);
+      g.fillStyle = tok("--axis"); g.fillRect(xx, y0, 1, rows.length * (rowH + 2));
+      const prev = gm.stage_marks[k - 1];
+      if (s !== "denoise_step" || !prev || prev[0] !== "denoise_step") {
+        const label = {vision: "vision", prefix: "prefix", denoise_step: "denoising steps"}[s];
+        if (xx > lastLabelEnd + 4 && xx < W - 40) { g.fillStyle = tok("--ink-2"); g.fillText(label, xx + 3, y0 - 4 + (labelW ? 0 : 0)); lastLabelEnd = xx + g.measureText(label).width; }
+      }
+    });
+    const bin = gm.bin_us / 1e3;
+    rows.forEach(([key, label], ri) => {
+      const y = y0 + ri * (rowH + 2) + 2;
+      g.fillStyle = tok("--ink-2"); g.font = `400 12px ${tok("--sans")}`; g.textBaseline = "middle";
+      g.fillText(label, 0, y + rowH / 2);
+      const series = gm.series[key] || [];
+      series.forEach((v, i) => {
+        if (v == null) return;
+        g.fillStyle = rampColor(v); g.fillRect(x(i * bin), y, Math.max(1, x((i + 1) * bin) - x(i * bin) + 0.4), rowH);
+      });
+      store.push({p, key, label, y, series, bin});
+    });
+  });
+  g.textBaseline = "alphabetic";
+  const ticks = niceTicks(maxMs, W < 520 ? 4 : 8).filter(t => t <= maxMs + 1e-6);
+  g.font = `400 11.5px ${tok("--sans")}`; g.fillStyle = tok("--muted"); g.textAlign = "center";
+  ticks.forEach((t, i) => g.fillText(t + (i === ticks.length - 1 ? " ms" : ""), Math.min(x(t), W - padR - 14), H - 6));
+  g.textAlign = "start";
+  cv.addEventListener("mousemove", ev => {
+    const r = cv.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    const row = store.find(s => py >= s.y && py <= s.y + rowH);
+    if (!row || px < labelW) return hideTip();
+    const ms = ((px - labelW) / plotW) * maxMs, i = Math.floor(ms / row.bin);
+    const v = row.series[i];
+    if (v == null) return hideTip();
+    const others = store.filter(s => s.p === row.p).map(s => `${s.label}: ${fmt(s.series[i], 0)}%`).join("<br>");
+    showTip(ev, `<b>${PATH_LABEL[row.p]}</b> · ${fmt(ms, 1)} ms<br>${others}`);
+  });
+  cv.addEventListener("mouseleave", hideTip);
+
+  // stage-mean table
+  const cols = [["sm_active", "SMs active"], ["sm_issue", "SM issue"], ["tensor_active", "Tensor active"], ["warps_in_flight", "Warps in flight"], ["dram_read", "DRAM read"], ["dram_write", "DRAM write"], ["gpc_mhz", "SM clock"]];
+  let html = `<thead><tr><th class="l">Stage</th><th class="l">Path</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead><tbody>`;
+  for (const s of ["vision", "prefix", "denoise_step", "cycle"]) {
+    paths.forEach((p, k) => {
+      const m = D[p].gpu_metrics.stage_means[s] || {};
+      html += `<tr><td class="l">${k === 0 ? (s === "cycle" ? "<b>Whole cycle</b>" : STAGE_LABEL[s]) : ""}</td><td class="l">${PATH_LABEL[p]}</td>` +
+        cols.map(([c]) => c === "gpc_mhz" ? `<td>${fmt(m[c], 0)} MHz</td>` :
+          `<td class="heat" style="background:${rampColor(m[c] || 0)};color:${inkOn(m[c] || 0)}">${fmt(m[c], 1)}%</td>`).join("") + `</tr>`;
+    });
+  }
+  document.getElementById("stage-metrics").innerHTML = html + "</tbody>";
+}
+
+// ------------------------------------------------------------------ Fig 5
+function renderCats() {
+  const host = document.getElementById("cats"); host.innerHTML = "";
+  const W = host.clientWidth, narrow = W < 560, labelW = narrow ? 0 : 214, padR = 64, rowH = 18, gap = narrow ? 34 : 14;
+  const rows = [];
+  for (const p of ["eager", "trt"]) for (const s of ["vision", "prefix", "denoise_step"]) {
+    const st = D[p].trace.stages[s], vals = [0, 0, 0, 0, 0];
+    for (const [k, v] of Object.entries(st)) if (k.startsWith("cat:")) vals[CAT_MAP[k.slice(4)]] += v;
+    rows.push({p, s, vals, idle: st.idle_ms, total: st.window_ms});
+  }
+  const top = 6, H = top + rows.length * (rowH + gap) + 30 + (narrow ? 0 : 10);
+  const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": "Kernel time by category per stage"}, host);
+  hatchPattern(svg, "hatch2");
+  const max = Math.max(...rows.map(r => r.total)), ticks = niceTicks(max, narrow ? 4 : 6);
+  const x = v => labelW + (v / ticks[ticks.length - 1]) * (W - labelW - padR);
+  rows.forEach((r, i) => {
+    const y = top + i * (rowH + gap) + (narrow ? 16 : 0) + (i >= 3 ? 10 : 0);
+    const t = svgEl("text", {x: 0, y: narrow ? y - 5 : y + rowH / 2 + 4, "font-size": 12.5, fill: tok("--ink"), "font-family": tok("--sans")}, svg);
+    t.textContent = `${PATH_LABEL[r.p]} · ${{vision: "vision", prefix: "prefix", denoise_step: "10 denoising steps"}[r.s]}`;
+    let cur = 0;
+    const segs = r.vals.map((v, c) => [v, c]).concat([[r.idle, -1]]);
+    segs.forEach(([v, c], k) => {
+      if (v <= 0.005) return;
+      const w = Math.max(1, x(cur + v) - x(cur) - 2);
+      const rect = svgEl("rect", {x: x(cur), y, width: w, height: rowH, fill: c < 0 ? "url(#hatch2)" : catColor(c), rx: 2}, svg);
+      rect.addEventListener("mousemove", ev => showTip(ev, `<b>${PATH_LABEL[r.p]} · ${STAGE_LABEL[r.s]}</b><br>${c < 0 ? "GPU idle" : CATS[c]}: ${fmt(v, 2)} ms (${fmt(100 * v / r.total, 0)}% of the stage)`));
+      rect.addEventListener("mouseleave", hideTip);
+      cur += v;
+    });
+    const lbl = svgEl("text", {x: x(cur) + 4, y: y + rowH / 2 + 4, "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg);
+    lbl.textContent = `${fmt(r.total)} ms`;
+  });
+  axisX(svg, x, ticks, H - 20, 0, "ms");
+}
+
+// ------------------------------------------------------------------ Fig 6
+function renderHist() {
+  const host = document.getElementById("hist"); host.innerHTML = "";
+  const edges = D.eager.trace.duration_hist.edges_us;
+  const labels = edges.map((e, i) => i === edges.length - 1 ? `≥${e}` : `${e}–${edges[i + 1]}`);
+  labels[0] = "<2";
+  const subs = [];
+  ["eager", "trt"].forEach(p => {
+    const h = D[p].trace.duration_hist;
+    const count = edges.map((_, i) => ["vision", "prefix", "denoise_step"].reduce((s, st) => s + h[st].count[i], 0));
+    const time = edges.map((_, i) => ["vision", "prefix", "denoise_step"].reduce((s, st) => s + h[st].time_ms[i], 0));
+    const wrap = document.createElement("div"); wrap.style.minWidth = "0";
+    wrap.innerHTML = `<div class="panel-title">${PATH_LABEL[p]} · ${fmt(D[p].trace.kernels_per_cycle, 0)} kernels per cycle</div>`;
+    host.appendChild(wrap);
+    const W = wrap.clientWidth || 300, H = 190, padL = 44, padB = 34, padT = 10;
+    const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": `${PATH_LABEL[p]} kernel duration histogram`}, wrap);
+    const max = Math.max(...["eager", "trt"].map(q => Math.max(...edges.map((_, i) => ["vision", "prefix", "denoise_step"].reduce((s, st) => s + D[q].trace.duration_hist[st].count[i], 0)))));
+    const ticks = niceTicks(max, 4), ymax = ticks[ticks.length - 1];
+    const y = v => H - padB - (v / ymax) * (H - padB - padT);
+    ticks.forEach(t => {
+      svgEl("line", {x1: padL, x2: W - 4, y1: y(t), y2: y(t), stroke: tok("--grid")}, svg);
+      const tx = svgEl("text", {x: padL - 6, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: tok("--muted"), "font-family": tok("--sans")}, svg);
+      tx.textContent = t >= 1000 ? (t / 1000) + "k" : t;
+    });
+    const bw = (W - padL - 8) / edges.length;
+    count.forEach((c, i) => {
+      const xx = padL + i * bw + bw * 0.18, w = Math.min(24, bw * 0.64);
+      const hgt = H - padB - y(c);
+      if (c > 0) {
+        const path = `M${xx},${H - padB}V${y(c) + Math.min(4, hgt)}q0,-4 4,-4h${w - 8}q4,0 4,4V${H - padB}Z`;
+        const r = svgEl("path", {d: hgt > 4 ? path : `M${xx},${H - padB}h${w}v${-hgt}h${-w}Z`, fill: tok("--busy")}, svg);
+        const hit = svgEl("rect", {x: padL + i * bw, y: padT, width: bw, height: H - padB - padT, fill: "transparent"}, svg);
+        hit.addEventListener("mousemove", ev => showTip(ev, `<b>${PATH_LABEL[p]}</b> · ${labels[i]} µs<br>${fmt(c, 0)} kernels per cycle<br>${fmt(time[i], 2)} ms of kernel time per cycle`));
+        hit.addEventListener("mouseleave", hideTip);
+      }
+      const tx = svgEl("text", {x: padL + i * bw + bw / 2, y: H - padB + 14, "text-anchor": "middle", "font-size": 10.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg);
+      tx.textContent = bw > 26 || i % 2 === 0 ? labels[i] : "";
+    });
+    const ux = svgEl("text", {x: W - 4, y: H - 4, "text-anchor": "end", "font-size": 11, fill: tok("--muted"), "font-family": tok("--sans")}, svg);
+    ux.textContent = "kernel duration, µs";
+    const tot = count.reduce((a, b) => a + b, 0), tt = time.reduce((a, b) => a + b, 0);
+    subs.push(`${PATH_LABEL[p]}: ${fmt(100 * (count[0] + count[1]) / tot, 0)}% of kernels run under 5 µs and account for ${fmt(100 * (time[0] + time[1]) / tt, 0)}% of kernel time`);
+  });
+  document.getElementById("hist-sub").textContent = `Kernels per cycle by duration. ${subs.join("; ")}. A kernel that finishes faster than the host can launch the next one leaves the GPU idle.`;
+}
+
+// ------------------------------------------------------------------ Fig 7
+let tkPath = "eager";
+function renderTopK() {
+  const tabs = document.getElementById("tk-tabs");
+  tabs.innerHTML = ["eager", "trt"].map(p => `<button role="tab" id="tab-${p}" aria-selected="${p === tkPath}" data-p="${p}">${PATH_LABEL[p]}</button>`).join("");
+  tabs.querySelectorAll("button").forEach(b => b.onclick = () => { tkPath = b.dataset.p; renderTopK(); });
+  const ks = D[tkPath].trace.top_kernels.slice(0, 15), max = ks[0].ms_per_cycle;
+  document.getElementById("topk").innerHTML = `<thead><tr><th class="l">Kernel</th><th class="l">Stage</th><th class="l">Category</th><th>Calls</th><th>Avg µs</th><th>Grid × block</th><th class="l">ms per cycle</th></tr></thead><tbody>` +
+    ks.map(k => `<tr><td class="k" title="${k.full.replace(/"/g, "&quot;")}">${k.name}</td><td class="l">${{vision: "vision", prefix: "prefix", denoise_step: "denoise"}[k.stage] || k.stage}</td>
+      <td class="l"><i class="dot" style="background:var(--c${CAT_MAP[k.cat] + 1})"></i>${CATS[CAT_MAP[k.cat]].replace(" (tensor cores)", " (TC)").replace(" (fp32 CUDA cores)", " (fp32)")}</td>
+      <td>${fmt(k.per_cycle, 0)}</td><td>${fmt(k.avg_us, 1)}</td><td>${k.grid.toLocaleString()} × ${k.block}</td>
+      <td class="l">${fmt(k.ms_per_cycle, 2)}<span class="minibar" style="width:${Math.max(2, 90 * k.ms_per_cycle / max)}px"></span></td></tr>`).join("") + "</tbody>";
+}
+
+// ------------------------------------------------------------------ Nsight Compute
+function renderNcu() {
+  const paths = ["eager", "trt"].filter(p => D[p].ncu);
+  if (!paths.length) return;
+  const body = document.getElementById("ncu-body");
+  const partial = paths.filter(p => D[p].ncu.partial).map(p => PATH_LABEL[p]);
+  const missing = ["eager", "trt"].filter(p => !D[p].ncu).map(p => PATH_LABEL[p]);
+  const note = (partial.length || missing.length) ? `<p class="pending">${partial.length ? `${partial.join(", ")}: vision and prefix only. The first kernel-replay run was stopped by its memory limit before the denoising step. ` : ""}${missing.length ? `${missing.join(", ")}: not collected yet. ` : ""}A rerun with application replay is in progress.</p>` : "";
+  body.innerHTML = note + `
+  <div style="display:grid;gap:18px">
+  <figure><figcaption><span class="fig">Fig. 8</span><span class="ttl">Speed of light: how close each kernel gets to the SM and memory peaks</span>
+    <span class="sub">One dot per kernel launch in one cycle. Area is the kernel's time per cycle, so denoising-step kernels count ×10. Kernels in the shaded corner use under half of both the compute and the memory peak: they are bound by latency, launch size or occupancy, not by throughput.</span></figcaption>
+    <div class="legend"><span><i class="sw" style="background:var(--c1)"></i>GEMM (tensor cores)</span><span><i class="sw" style="background:var(--c2)"></i>GEMM/GEMV (fp32 CUDA cores)</span><span><i class="sw" style="background:var(--c3)"></i>Attention</span><span><i class="sw" style="background:var(--other)"></i>All other kernels</span></div>
+    <div class="panels" id="sol"></div></figure>
+  <figure><figcaption><span class="fig">Fig. 9</span><span class="ttl">What limits each stage</span>
+    <span class="sub">Time-weighted over the stage's kernels at base clock. <i>Compute-bound</i>: SM throughput ≥ 50% and above memory. <i>Memory-bound</i>: memory throughput ≥ 50% and above SM. <i>Latency-bound</i>: both below 50%. <i>Tensor</i> is the share of the bf16 or TF32 tensor-core FLOP peak. Stall reasons are the share of warp stall cycles.</span></figcaption>
+    <div class="scroll"><table class="data" id="limiters"></table></div></figure>
+  <figure><figcaption><span class="fig">Fig. 10</span><span class="ttl">Nsight Compute's own diagnosis</span>
+    <span class="sub">Sum over kernels of each rule's estimated recoverable time, in ms per cycle at base clock. Rules overlap, so the bars do not add up to a total.</span></figcaption>
+    <div class="panels" id="rules"></div></figure>
+  <figure><figcaption><span class="fig">Fig. 11</span><span class="ttl">Hardware counters of the costliest kernels</span>
+    <span class="sub">Identical launches merged; ms per cycle at base clock, so denoising kernels count ×10. Tensor % is the share of the tensor-core FLOP peak. Occ. is achieved/theoretical occupancy; the limit column names what caps the theoretical value.</span></figcaption>
+    <div class="tabs" role="tablist" id="nk-tabs"></div>
+    <div class="scroll"><table class="data" id="ncuk"></table></div></figure>
+  </div>`;
+  renderSol(paths); renderLimiters(paths); renderRules(paths); renderNcuKernels(paths);
+}
+const solColor = cat => ({"GEMM (tensor cores)": tok("--c1"), "GEMM/GEMV (fp32 CUDA cores)": tok("--c2"), "Attention": tok("--c3")}[cat] || tok("--other"));
+function renderSol(paths) {
+  const host = document.getElementById("sol"); host.innerHTML = "";
+  const maxW = Math.max(...paths.flatMap(p => D[p].ncu.kernels.map(k => k.us * k.weight)));
+  paths.forEach(p => {
+    const wrap = document.createElement("div"); wrap.style.minWidth = "0";
+    wrap.innerHTML = `<div class="panel-title">${PATH_LABEL[p]}</div>`; host.appendChild(wrap);
+    const W = wrap.clientWidth || 320, H = Math.min(360, W * 0.9), pad = {l: 40, r: 10, t: 8, b: 36};
+    const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": `${PATH_LABEL[p]} speed-of-light scatter`}, wrap);
+    const x = v => pad.l + (v / 100) * (W - pad.l - pad.r), y = v => H - pad.b - (v / 100) * (H - pad.t - pad.b);
+    svgEl("rect", {x: x(0), y: y(50), width: x(50) - x(0), height: y(0) - y(50), fill: tok("--wash")}, svg);
+    [0, 25, 50, 75, 100].forEach(t => {
+      svgEl("line", {x1: x(0), x2: x(100), y1: y(t), y2: y(t), stroke: tok("--grid")}, svg);
+      svgEl("line", {x1: x(t), x2: x(t), y1: y(0), y2: y(100), stroke: tok("--grid")}, svg);
+      const a = svgEl("text", {x: x(0) - 6, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: tok("--muted"), "font-family": tok("--sans")}, svg); a.textContent = t;
+      const b = svgEl("text", {x: x(t), y: H - pad.b + 15, "text-anchor": "middle", "font-size": 11, fill: tok("--muted"), "font-family": tok("--sans")}, svg); b.textContent = t;
+    });
+    const xl = svgEl("text", {x: x(100), y: H - 4, "text-anchor": "end", "font-size": 11.5, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); xl.textContent = "memory throughput, % of peak";
+    const yl = svgEl("text", {x: x(0) + 4, y: y(100) + 12, "font-size": 11.5, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); yl.textContent = "SM throughput, % of peak";
+    const ks = [...D[p].ncu.kernels].sort((a, b) => b.us * b.weight - a.us * a.weight);
+    ks.forEach(k => {
+      const r = Math.max(2.2, 18 * Math.sqrt(k.us * k.weight / maxW));
+      const c = svgEl("circle", {cx: x(k.mem_pct || 0), cy: y(k.sm_pct || 0), r, fill: solColor(k.cat), "fill-opacity": 0.75, stroke: tok("--surface"), "stroke-width": r > 4 ? 1.5 : 0.8}, svg);
+      c.addEventListener("mousemove", ev => showTip(ev, `<div class="k">${k.name}</div>${k.stage} · ${fmt(k.us, 1)} µs × ${k.weight}<br>SM ${fmt(k.sm_pct, 0)}% · memory ${fmt(k.mem_pct, 0)}% · DRAM ${fmt(k.dram_pct, 0)}%<br>tensor pipe ${fmt(k.tensor_pct, 0)}% · occupancy ${fmt(k.occ_achieved_pct, 0)}/${fmt(k.occ_theoretical_pct, 0)}%<br>grid ${k.grid.toLocaleString()} × ${k.block}, ${fmt(k.waves, 2)} waves`));
+      c.addEventListener("mouseleave", hideTip);
+    });
+  });
+}
+function renderLimiters(paths) {
+  const st = ["vision", "prefix", "denoise_step", "all"];
+  let html = `<thead><tr><th class="l">Stage</th><th class="l">Path</th><th>ms (base clk)</th><th>Compute-bound</th><th>Memory-bound</th><th>Latency-bound</th><th>SM %</th><th>DRAM %</th><th>Tensor %</th><th>Occupancy</th><th class="l">Top stall reasons</th></tr></thead><tbody>`;
+  for (const s of st) paths.forEach((p, k) => {
+    const b = D[p].ncu.by_stage[s]; if (!b) return;
+    const sh = b.bound_share || {}, cell = v => `<td class="heat" style="background:${rampColor(v || 0)};color:${inkOn(v || 0)}">${fmt(v, 0)}%</td>`;
+    const stalls = Object.entries(b.stall_share || {}).slice(0, 3).map(([n, v]) => `${n.replace(/_/g, " ")} ${fmt(100 * v, 0)}%`).join(", ");
+    html += `<tr><td class="l">${k === 0 ? (s === "all" ? "<b>All profiled kernels</b>" : STAGE_LABEL[s]) : ""}</td><td class="l">${PATH_LABEL[p]}</td><td>${fmt(b.ms_per_cycle_at_base_clock, 1)}</td>${cell(100 * (sh.compute || 0))}${cell(100 * (sh.memory || 0))}${cell(100 * (sh.latency || 0))}${cell(b.sm_pct)}${cell(b.dram_pct)}${cell(b.tensor_pct)}<td>${fmt(b.occ_achieved_pct, 0)}% of ${fmt(b.occ_theoretical_pct, 0)}%</td><td class="l" style="white-space:normal;min-width:14rem">${stalls}</td></tr>`;
+  });
+  document.getElementById("limiters").innerHTML = html + "</tbody>";
+}
+function renderRules(paths) {
+  const host = document.getElementById("rules"); host.innerHTML = "";
+  paths.forEach(p => {
+    const rules = Object.entries(D[p].ncu.rules).slice(0, 7);
+    const wrap = document.createElement("div"); wrap.style.minWidth = "0";
+    wrap.innerHTML = `<div class="panel-title">${PATH_LABEL[p]}</div>`; host.appendChild(wrap);
+    const W = wrap.clientWidth || 320, rowH = 16, gap = 22, H = rules.length * (rowH + gap) + 8;
+    const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": `${PATH_LABEL[p]} Nsight Compute rule estimates`}, wrap);
+    const max = Math.max(...paths.flatMap(q => Object.values(D[q].ncu.rules).map(r => r.ms)));
+    rules.forEach(([name, r], i) => {
+      const y = i * (rowH + gap) + 14;
+      const t = svgEl("text", {x: 0, y: y - 3, "font-size": 12, fill: tok("--ink"), "font-family": tok("--sans")}, svg); t.textContent = name;
+      const w = Math.max(5, (W - 70) * r.ms / max);
+      const bar = svgEl("path", {d: `M0,${y}h${w - 4}q4,0 4,4v${rowH - 8}q0,4 -4,4h${-(w - 4)}Z`, fill: tok("--busy")}, svg);
+      const hit = svgEl("rect", {x: 0, y: y - 16, width: W, height: rowH + 18, fill: "transparent"}, svg);
+      hit.addEventListener("mousemove", ev => showTip(ev, `<b>${name}</b> · ${fmt(r.ms, 2)} ms over ${r.kernels} kernels<br><span class="k">${(r.example || "").replace(/</g, "&lt;")}</span>`));
+      hit.addEventListener("mouseleave", hideTip);
+      const v = svgEl("text", {x: w + 6, y: y + rowH - 4, "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); v.textContent = `${fmt(r.ms, 1)} ms`;
+    });
+  });
+}
+let nkPath = "trt";
+function renderNcuKernels(paths) {
+  if (!paths.includes(nkPath)) nkPath = paths[0];
+  const tabs = document.getElementById("nk-tabs");
+  tabs.innerHTML = paths.map(p => `<button role="tab" aria-selected="${p === nkPath}" data-p="${p}">${PATH_LABEL[p]}</button>`).join("");
+  tabs.querySelectorAll("button").forEach(b => b.onclick = () => { nkPath = b.dataset.p; renderNcuKernels(paths); });
+  // merge identical kernels (same name, stage, grid) so a per-layer kernel shows once with its count
+  const groups = new Map();
+  for (const k of D[nkPath].ncu.kernels) {
+    const key = `${k.name}|${k.stage}|${k.grid}|${k.block}`;
+    const g = groups.get(key) || {...k, n: 0, ms: 0};
+    g.n += k.weight; g.ms += k.us * k.weight / 1e3; groups.set(key, g);
+  }
+  const ks = [...groups.values()].sort((a, b) => b.ms - a.ms).slice(0, 15);
+  const cell = v => `<td class="heat" style="background:${rampColor(v || 0)};color:${inkOn(v || 0)}">${fmt(v, 0)}</td>`;
+  document.getElementById("ncuk").innerHTML = `<thead><tr><th class="l">Kernel</th><th class="l">Stage</th><th>Calls</th><th>ms</th><th>Grid × block</th><th>Waves</th><th>SM %</th><th>Mem %</th><th>DRAM %</th><th>Tensor %</th><th>Occ. %</th><th class="l">Occ. limit</th><th>L2 hit %</th><th class="l">Bound</th><th class="l">Top stall</th></tr></thead><tbody>` +
+    ks.map(k => `<tr><td class="k">${k.name}</td><td class="l">${{vision: "vision", prefix: "prefix", denoise_step: "denoise"}[k.stage] || k.stage}</td><td>${k.n}</td><td>${fmt(k.ms, 2)}</td><td>${k.grid.toLocaleString()} × ${k.block}</td><td>${fmt(k.waves, 2)}</td>${cell(k.sm_pct)}${cell(k.mem_pct)}${cell(k.dram_pct)}${cell(k.tensor_pct)}<td>${fmt(k.occ_achieved_pct, 0)}/${fmt(k.occ_theoretical_pct, 0)}</td><td class="l">${{regs: "registers", smem: "shared mem", warps: "warps", blocks: "blocks"}[k.occ_limiter] || "–"}</td><td>${fmt(k.l2_hit_pct, 0)}</td><td class="l">${k.bound}</td><td class="l">${(k.top_stall || "–").replace(/_/g, " ")}</td></tr>`).join("") + "</tbody>";
+}
+
+// ------------------------------------------------------------------ boot
+function renderAll() {
+  legendCats("cat-legend", false); legendCats("cat-legend-2", true);
+  renderCompare(); renderFindings(); renderAnatomy(); renderTimeline(); renderZoom(); renderHeat(); renderCats(); renderHist(); renderTopK(); renderNcu();
+}
+let resizeT;
+fetch("profile.json").then(r => r.json()).then(d => {
+  D = d; renderAll();
+  new ResizeObserver(() => { clearTimeout(resizeT); resizeT = setTimeout(renderAll, 120); }).observe(document.querySelector("main"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+  new MutationObserver(renderAll).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+}).catch(err => {
+  document.getElementById("findings").innerHTML = `<li class="pending">Could not load profile.json (${err.message}). Run scripts/profile.sh analyze and republish.</li>`;
+});
+</script>
