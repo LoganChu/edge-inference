@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import bisect
 import json
+import multiprocessing
 import re
 import sqlite3
 import statistics
@@ -424,52 +425,75 @@ STALL_PREFIX = "smsp__average_warps_issue_stalled_"
 STALL_SUFFIX = "_per_issue_active.ratio"
 
 
-def load_ncu(path: Path) -> list[dict]:
+def _ncu_index(path: str) -> list[tuple[int, int]]:
     sys.path.insert(0, NCU_PY)
     import ncu_report
 
-    ctx = ncu_report.load_report(str(path))
+    ctx = ncu_report.load_report(path)
+    return [(ri, ai) for ri in range(ctx.num_ranges()) for ai in range(ctx.range_by_idx(ri).num_actions())]
+
+
+def _ncu_rows(path: str, todo: list[tuple[int, int]]) -> list[dict]:
+    sys.path.insert(0, NCU_PY)
+    import ncu_report
+
+    ctx = ncu_report.load_report(path)
     rows = []
-    for ri in range(ctx.num_ranges()):
-        rg = ctx.range_by_idx(ri)
-        for ai in range(rg.num_actions()):
-            act = rg.action_by_idx(ai)
-            row = {"name": act.name(act.NameBase_DEMANGLED)}
-            for k, m in NCU_METRICS.items():
-                mv = act.metric_by_name(m)
-                row[k] = mv.as_double() if mv is not None else None
-            stalls = {}
-            for m in act.metric_names():
-                if m.startswith(STALL_PREFIX) and m.endswith(STALL_SUFFIX) and "_not_issued" not in m:
-                    v = act.metric_by_name(m).as_double()
-                    if v:
-                        stalls[m[len(STALL_PREFIX):-len(STALL_SUFFIX)]] = v
-            row["stalls"] = stalls
-            stage = "glue"
-            st = act.nvtx_state()
-            if st is not None:
-                for did in st.domains():
-                    dom = st.domain_by_id(did)
-                    names = list(dom.push_pop_ranges())
-                    for nm in reversed(names):
-                        if nm in STAGES:
-                            stage = nm
-                            break
-            row["stage"] = stage
-            rules = {}  # one estimate per rule title per kernel (a rule can report several messages)
-            for r in act.rule_results_as_dicts():
-                sp = r.get("speedup_estimation") or {}
-                val = sp.get("speedup") if isinstance(sp, dict) else None
-                if not val:
-                    continue
-                msg = r.get("rule_message") or {}
-                title = (msg.get("title") if isinstance(msg, dict) else "") or r.get("name") or r.get("rule_identifier")
-                text = msg.get("message", "") if isinstance(msg, dict) else str(msg)
-                text = re.sub(r"@(?:section|url):([^:@]+)(?::[^@]*)?@", r"\1", text)
-                if title not in rules or val > rules[title]["speedup_pct"]:
-                    rules[title] = {"name": title, "speedup_pct": val, "message": text}
-            row["rules"] = list(rules.values())
-            rows.append(row)
+    for ri, ai in todo:
+        act = ctx.range_by_idx(ri).action_by_idx(ai)
+        row = {"name": act.name(act.NameBase_DEMANGLED)}
+        for k, m in NCU_METRICS.items():
+            mv = act.metric_by_name(m)
+            row[k] = mv.as_double() if mv is not None else None
+        stalls = {}
+        for m in act.metric_names():
+            if m.startswith(STALL_PREFIX) and m.endswith(STALL_SUFFIX) and "_not_issued" not in m:
+                v = act.metric_by_name(m).as_double()
+                if v:
+                    stalls[m[len(STALL_PREFIX):-len(STALL_SUFFIX)]] = v
+        row["stalls"] = stalls
+        stage = "glue"
+        st = act.nvtx_state()
+        if st is not None:
+            for did in st.domains():
+                dom = st.domain_by_id(did)
+                names = list(dom.push_pop_ranges())
+                for nm in reversed(names):
+                    if nm in STAGES:
+                        stage = nm
+                        break
+        row["stage"] = stage
+        rules = {}  # one estimate per rule title per kernel (a rule can report several messages)
+        for r in act.rule_results_as_dicts():
+            sp = r.get("speedup_estimation") or {}
+            val = sp.get("speedup") if isinstance(sp, dict) else None
+            if not val:
+                continue
+            msg = r.get("rule_message") or {}
+            title = (msg.get("title") if isinstance(msg, dict) else "") or r.get("name") or r.get("rule_identifier")
+            text = msg.get("message", "") if isinstance(msg, dict) else str(msg)
+            text = re.sub(r"@(?:section|url):([^:@]+)(?::[^@]*)?@", r"\1", text)
+            if title not in rules or val > rules[title]["speedup_pct"]:
+                rules[title] = {"name": title, "speedup_pct": val, "message": text}
+        row["rules"] = list(rules.values())
+        rows.append(row)
+    return rows
+
+
+def load_ncu(path: Path, chunk: int = 150) -> list[dict]:
+    """Per-kernel rows of an ncu report, read in fresh processes `chunk` kernels at a time.
+
+    ncu_report keeps every action it has materialised until the report is closed, and a TensorRT kernel's
+    action holds ~12.6 MB (its engine module comes along), so reading the 1,742-kernel TensorRT report in one
+    process grew to 17.6 GB and took the box into a global OOM.
+    """
+    mp = multiprocessing.get_context("spawn")
+    rows = []
+    with mp.Pool(1, maxtasksperchild=1) as pool:
+        idx = pool.apply(_ncu_index, (str(path),))
+        for i in range(0, len(idx), chunk):
+            rows += pool.apply(_ncu_rows, (str(path), idx[i:i + chunk]))
+            print(f"[ncu] {path.name}: {min(i + chunk, len(idx))}/{len(idx)} kernels", flush=True)
     return rows
 
 

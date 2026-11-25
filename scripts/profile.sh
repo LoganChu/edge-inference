@@ -108,7 +108,7 @@ hw|ncu)
   MEM=12 run profile_ncu_eager "$NCU" "${NCU_ARGS[@]}" -o profiles/ncu/eager_bf16 "$ET15" "${EAGER[@]}" --warmup 2 --cycles 1 --steps 1 || echo "[profile] ncu eager failed" >&2
   ;;
 analyze)
-  "$ET15" -m pi05_edge.profile_analyze
+  MEM=8 limited "$ET15" -m pi05_edge.profile_analyze   # reads ncu reports in 150-kernel chunks; ~2 GB at most
   ;;
 *)
   echo "unknown mode $mode" >&2; exit 2 ;;

@@ -1,0 +1,577 @@
+<title>π₀.5 TensorRT Kernels</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column of a lab report, the companion of the full cycle profile; findings lead, figures follow, method closes. */
+:root {
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #75736d;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10); --wash: #f0efec;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --other: #b4b2aa;
+  --busy: #256abf; --idle: #a9a7a0; --lim-compute: #1c5cab; --lim-memory: #86b6ef;
+  --heat: #3987e5;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: #232322;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --other: #5c5b56;
+  --busy: #3987e5; --idle: #6b6a64; --lim-compute: #6da7ec; --lim-memory: #1c5cab;
+  --heat: #2a78d6;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --wash: #232322;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --other: #5c5b56;
+  --busy: #3987e5; --idle: #6b6a64; --lim-compute: #6da7ec; --lim-memory: #1c5cab;
+  --heat: #2a78d6;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 56px; }
+section { display: grid; gap: 18px; min-width: 0; }
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4.6vw, 40px); line-height: 1.12; }
+h2 { font-size: 22px; line-height: 1.25; }
+h3 { font-size: 16px; line-height: 1.35; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--c1); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.lede { color: var(--ink-2); font-size: 16.5px; }
+header { display: grid; gap: 14px; }
+.scroll { overflow-x: auto; min-width: 0; }
+.note { font-size: 13.5px; color: var(--ink-2); }
+
+/* stage summary */
+.stages { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.stages th, .stages td { text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+.stages th:first-child, .stages td:first-child { text-align: left; }
+.stages thead th { font-size: 12px; font-weight: 500; color: var(--ink-2); letter-spacing: 0.02em; vertical-align: bottom; }
+.stages td.big { font-size: 20px; font-weight: 600; }
+.stages td .unit { font-size: 13px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.stages tfoot td { font-weight: 600; border-bottom: none; }
+.limbar { display: flex; height: 12px; width: 150px; gap: 2px; margin-left: auto; }
+.limbar i { display: block; height: 100%; }
+.limbar i:first-child { border-radius: 2px 0 0 2px; } .limbar i:last-child { border-radius: 0 2px 2px 0; }
+
+/* findings */
+.group-label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); padding-top: 6px; }
+.findings { display: grid; list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--grid); }
+.finding { display: grid; grid-template-columns: 7.6rem 1fr; gap: 6px 22px; padding: 18px 0; border-bottom: 1px solid var(--grid); }
+.finding .cost { font-variant-numeric: tabular-nums; }
+.finding .cost b { display: block; font-size: 24px; font-weight: 600; line-height: 1.1; }
+.finding .cost span { font-size: 12px; color: var(--ink-2); }
+.finding .body { display: grid; gap: 7px; min-width: 0; }
+.finding h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.tag { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--ink-2); background: var(--surface); }
+.lbl { font-weight: 600; color: var(--ink); }
+.finding p { color: var(--ink-2); }
+.finding p .lbl + * { color: inherit; }
+@media (max-width: 560px) { .finding { grid-template-columns: 1fr; } .finding .cost b { display: inline; margin-right: 6px; } }
+
+/* figures */
+figure { margin: 0; display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 14px; min-width: 0; }
+figcaption { display: grid; gap: 4px; }
+figcaption .fig { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+figcaption .ttl { font-weight: 600; font-size: 15.5px; }
+figcaption .sub { color: var(--ink-2); font-size: 13.5px; max-width: 82ch; }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg { display: block; overflow: visible; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.sw.round { border-radius: 50%; }
+.sw.line { width: 16px; height: 0; border-top: 2px solid var(--ink-2); border-radius: 0; }
+.sw.dash { width: 16px; height: 0; border-top: 2px dashed var(--ink-2); border-radius: 0; }
+
+/* stall small multiples and rule bars */
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+.panel { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.panel-title { font-size: 13px; font-weight: 600; }
+.hbars { display: grid; gap: 7px; }
+.hbar { display: grid; grid-template-columns: minmax(0, 1fr) 3.4rem; gap: 2px 10px; align-items: center; font-size: 12.5px; }
+.hbar .name { color: var(--ink); grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; }
+.hbar .track { height: 8px; background: var(--wash); border-radius: 0 2px 2px 0; min-width: 0; }
+.hbar .fill { height: 100%; background: var(--busy); border-radius: 0 2px 2px 0; }
+.hbar .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.rules { display: grid; gap: 14px; }
+.rule { display: grid; grid-template-columns: minmax(0, 1fr) 5.2rem; gap: 3px 12px; align-items: center; }
+.rule .name { font-size: 13.5px; font-weight: 500; }
+.rule .val { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-2); grid-row: 1 / 3; grid-column: 2; }
+.rule .track { height: 8px; background: var(--wash); border-radius: 0 2px 2px 0; }
+.rule .fill { height: 100%; background: var(--busy); border-radius: 0 2px 2px 0; }
+.rule .ex { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-2); max-width: 90ch; }
+.rule .ex code { font-size: 11.5px; }
+
+/* tables */
+table.data { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; vertical-align: middle; white-space: nowrap; }
+table.data th { font-weight: 500; color: var(--ink-2); font-size: 12px; vertical-align: bottom; }
+table.data td.l, table.data th.l { text-align: left; }
+table.data td.k { font-family: var(--mono); font-size: 11.5px; white-space: normal; min-width: 15rem; max-width: 24rem; word-break: break-word; }
+table.data td.k .nick { font-family: var(--sans); font-size: 13px; font-weight: 500; display: block; word-break: normal; }
+table.data td.k .where { font-family: var(--sans); font-size: 11.5px; color: var(--ink-2); display: block; margin: 1px 0 2px 14px; }
+table.data td.k .raw { display: block; margin-left: 14px; color: var(--muted); font-size: 11px; }
+#ktable { min-width: 1080px; }
+#ktable td.k { min-width: 19rem; max-width: 23rem; text-align: left; }
+table.data td.h { color: var(--ink); }
+.minibar { display: inline-block; height: 8px; border-radius: 0 2px 2px 0; background: var(--busy); vertical-align: middle; margin-left: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 0; }
+.stagetag { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); letter-spacing: 0.03em; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tabs button, .more { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--page); color: var(--ink-2); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.tabs button:focus-visible, .more:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+.more { justify-self: start; }
+
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 6px 24px rgba(0,0,0,0.12); max-width: 330px; }
+.tip b { font-weight: 600; }
+.tip .k { font-family: var(--mono); font-size: 11.5px; word-break: break-word; color: var(--ink-2); }
+.method { display: grid; gap: 10px; color: var(--ink-2); font-size: 14px; }
+.method pre { font-family: var(--mono); font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 0; color: var(--ink); }
+.method ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; max-width: 82ch; }
+@media (prefers-reduced-motion: no-preference) { .tip { transition: opacity 80ms; } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">π₀.5 · TensorRT 11.1 direct runtime · RTX 5090 (GB202, 170 SMs) · Nsight Compute 2026.3.1</div>
+  <h1>What the TensorRT kernels are doing</h1>
+  <p class="lede">Nsight Compute ran one TensorRT control cycle 31 times, one counter group per run, and read the hardware counters of all 1,742 kernels in vision, the prefix and one denoising step. The other nine denoising steps launch the same kernels, so denoising counts ten times. Times below come from the Nsight Systems trace at normal clocks; the counters explain them.</p>
+  <p class="note">The TensorRT cycle takes 62.4&nbsp;ms and keeps the GPU busy for 61.4&nbsp;ms of it, so it is GPU-bound: kernel time saved comes straight off the cycle. Companion to the <a href="https://claude.ai/artifact/Sk3GT1mwh9zJiu16aVK7Cr">full cycle profile</a> of PyTorch eager and TensorRT.</p>
+  <div class="scroll"><table class="stages" id="stages" aria-label="Per-stage summary"></table></div>
+  <div class="legend" aria-hidden="true"><span><i class="sw" style="background:var(--lim-compute)"></i>Compute-bound time</span><span><i class="sw" style="background:var(--lim-memory)"></i>Memory-bound time</span><span><i class="sw" style="background:var(--idle)"></i>Latency-bound time (neither unit near its limit)</span></div>
+</header>
+
+<section>
+  <h2>What limits each part of the cycle</h2>
+  <div class="group-label">Fixable: kernels far below what the GPU can do</div>
+  <ol class="findings">
+    <li class="finding">
+      <div class="cost"><b>15.9 ms</b><span>per cycle · 26%</span></div>
+      <div class="body">
+        <h3>Denoising attention runs on 8 of the 170 SMs <span class="tag">latency-bound</span></h3>
+        <p><span class="lbl">Evidence.</span> <code>_gemm_mha_v2</code> launches 8 blocks of 128 threads (0.05 waves), so 162 SMs sit idle through each of its 180 calls per cycle. SM throughput is 2.4% and the tensor pipes 2.4% of peak. Only one block fits per SM (8.3% theoretical occupancy, limited by shared memory at 255 registers per thread).</p>
+        <p><span class="lbl">Cause.</span> The denoiser's 50 action tokens fit in one 64-row query tile, so the kernel launches one block per attention head and each block walks all 1,018 keys (968 prefix tokens plus the 50 action tokens) on its own. The prefix calls the same kernel with 968 queries, gets 128 blocks and reaches 35% SM throughput.</p>
+        <p><span class="lbl">Fix direction.</span> Split the keys across blocks (split-KV or flash-decoding attention, for example as a TensorRT plugin in the denoise engine). At the prefix call's measured 73&nbsp;TFLOPS, each call's 0.54&nbsp;GFLOP would take about 7&nbsp;µs instead of 108&nbsp;µs, which puts the ceiling near 15&nbsp;ms per cycle.</p>
+      </div>
+    </li>
+    <li class="finding">
+      <div class="cost"><b>7.7 ms</b><span>per cycle · 12%</span></div>
+      <div class="body">
+        <h3>Vision runs in TF32, at half the tensor-core rate of bf16 <span class="tag">compute-bound</span></h3>
+        <p><span class="lbl">Evidence.</span> Vision's matmuls are <code>sm80_xmma_gemm_f32f32_tf32f32</code> kernels. The main one runs at 76% of the TF32 tensor peak, and on this GPU the TF32 peak is half of bf16's (about 104 against 207&nbsp;TFLOPS at ncu's clock).</p>
+        <p><span class="lbl">Cause.</span> LeRobot keeps <code>vision_tower</code> and <code>multi_modal_projector</code> in fp32 (<code>params_to_keep_float32</code>), so the vision engine was built from fp32 weights and TensorRT runs its matmuls in TF32.</p>
+        <p><span class="lbl">Fix direction.</span> Build the vision engine with bf16 weights, after checking the actions against the fp32 reference. At the same efficiency the GEMM time roughly halves, about 3.7&nbsp;ms per cycle.</p>
+      </div>
+    </li>
+    <li class="finding">
+      <div class="cost"><b>3.5 ms</b><span>per cycle · 5.5%</span></div>
+      <div class="body">
+        <h3>Time conditioning reads 466&nbsp;MB of fp32 weights every step <span class="tag">memory-bound</span></h3>
+        <p><span class="lbl">Evidence.</span> One cuBLAS fp32 GEMV per step (<code>gemvx</code>, 14,208 blocks) moves 466&nbsp;MB at 1.33&nbsp;TB/s, 76% of DRAM peak. That is about a third of the denoiser's DRAM traffic (466 of 1,355&nbsp;MB per step).</p>
+        <p><span class="lbl">Cause.</span> These are the action expert's 37 adaRMS projections (1,024 → 3,072 each, 116.5&nbsp;M parameters). LeRobot keeps every <code>input_layernorm</code>, <code>post_attention_layernorm</code> and <code>model.norm</code> parameter in fp32, and TensorRT folds the 37 projections into one GEMV. Their only input is the timestep embedding.</p>
+        <p><span class="lbl">Fix direction.</span> The ten timesteps are fixed (t&nbsp;=&nbsp;1.0, 0.9, …, 0.1), so compute the scale, shift and gate vectors once per timestep: 10&nbsp;×&nbsp;37&nbsp;×&nbsp;3,072 fp32 values, 4.5&nbsp;MB. That removes 4.7&nbsp;GB of DRAM reads and about 3.4&nbsp;ms per cycle.</p>
+      </div>
+    </li>
+  </ol>
+  <div class="group-label">At the hardware limit: only less work or smaller numbers help</div>
+  <ol class="findings">
+    <li class="finding">
+      <div class="cost"><b>21.8 ms</b><span>per cycle · 35%</span></div>
+      <div class="body">
+        <h3>Prefix matmuls run at 74–94% of the bf16 tensor-core peak <span class="tag">compute-bound</span></h3>
+        <p><span class="lbl">Evidence.</span> The main prefill GEMM (64×96 tiles, 18 calls) runs at 189&nbsp;TFLOPS, 94% of the 207&nbsp;TFLOPS bf16 peak at ncu's clock, and its warps mostly wait on a full tensor pipe (math-pipe throttle). The 128×128 GEMMs (54 calls) reach 74%; their grids end in a partial wave (4.9 waves), which ncu reports as a tail effect.</p>
+        <p><span class="lbl">Fix direction.</span> No kernel change recovers much here. FP8 or NVFP4 weights and activations raise the roof itself, which is what this repo's FP8 and NVFP4 engines target.</p>
+      </div>
+    </li>
+    <li class="finding">
+      <div class="cost"><b>6.3 ms</b><span>per cycle · 10%</span></div>
+      <div class="body">
+        <h3>Denoising matmuls stream the action expert's weights every step <span class="tag">memory-bound</span></h3>
+        <p><span class="lbl">Evidence.</span> With 50 action tokens, each weight is used 50 times per read. The denoiser's GEMMs move 776&nbsp;MB per step, 623&nbsp;MB of it bf16 weights, at 40–60% of DRAM peak, with the tensor pipes at 10–30%.</p>
+        <p><span class="lbl">Fix direction.</span> Smaller weights: FP8 halves and NVFP4 roughly quarters the 6.2&nbsp;GB of weights read per cycle. Dropping the 466&nbsp;MB time-conditioning read also leaves these GEMMs more of the memory bus.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <figure>
+    <figcaption><span class="fig">Figure 1</span><span class="ttl">GPU time per cycle, split by what limits each kernel</span>
+      <span class="sub">Each kernel is compute-bound when its SM throughput reaches 50% of peak and exceeds its memory throughput, memory-bound when its memory throughput does, and latency-bound when both stay under 50%: the GPU mostly waits. Bar lengths are Nsight Systems time at normal clocks.</span></figcaption>
+    <div class="legend"><span><i class="sw" style="background:var(--lim-compute)"></i>Compute-bound</span><span><i class="sw" style="background:var(--lim-memory)"></i>Memory-bound</span><span><i class="sw" style="background:var(--idle)"></i>Latency-bound</span></div>
+    <div class="chart" id="fig-limits"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Figure 2</span><span class="ttl">Speed of light: how close each kernel gets to the SM and memory peaks</span>
+      <span class="sub">One dot per kernel per stage; its area is the kernel's time per cycle. Dots in the bottom-left square use less than half of both the SMs and the memory system. Hover a dot for its counters.</span></figcaption>
+    <div class="legend"><span><i class="sw round" style="background:var(--c1)"></i>GEMM (tensor cores)</span><span><i class="sw round" style="background:var(--c2)"></i>GEMV (fp32 CUDA cores)</span><span><i class="sw round" style="background:var(--c3)"></i>Attention</span><span><i class="sw round" style="background:var(--other)"></i>Normalization and element-wise</span></div>
+    <div class="chart" id="fig-sol"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Figure 3</span><span class="ttl">Roofline of the tensor-core kernels</span>
+      <span class="sub">Achieved TFLOPS against FLOPs per byte read from or written to DRAM, at ncu's 2.38&nbsp;GHz clock. A kernel can sit no higher than the roof for its precision. ncu flushes the caches between passes, so DRAM bytes here are cold-cache counts. Element-wise and normalization kernels do no tensor-core work and have no point.</span></figcaption>
+    <div class="legend"><span><i class="sw round" style="background:var(--c1)"></i>GEMM</span><span><i class="sw round" style="background:var(--c3)"></i>Attention</span><span><i class="sw line"></i>bf16 roof (207&nbsp;TFLOPS, 1.76&nbsp;TB/s)</span><span><i class="sw dash"></i>TF32 roof (104&nbsp;TFLOPS)</span></div>
+    <div class="chart" id="fig-roof"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Figure 4</span><span class="ttl">Why warps wait, per stage</span>
+      <span class="sub">Share of stall cycles by reason, weighted by kernel time. Long scoreboard is a wait on global or L2 memory; math-pipe throttle means the pipe a warp needs is full, the healthy stall of a compute-bound kernel; no instruction means the scheduler has no instruction fetched for the warp.</span></figcaption>
+    <div class="panels" id="fig-stalls"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Figure 5</span><span class="ttl">Nsight Compute's own guidance</span>
+      <span class="sub">ncu's rules estimate what share of each kernel's time a fix would recover. Summed here as milliseconds per cycle at ncu's clock, with denoising kernels counted ten times. The rules overlap (one kernel trips several), so the bars do not add up, and tiny kernels look slower under ncu than in a normal run. Each line quotes the kernel where the rule recovers the most.</span></figcaption>
+    <div class="rules" id="fig-rules"></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Figure 6</span><span class="ttl">The same stages under PyTorch eager</span>
+      <span class="sub">Both paths measured the same way under ncu (kernel time at 2.38&nbsp;GHz, caches flushed). Eager's denoising step has no counters: both of its application-replay runs failed when another job took the GPU's memory partway through.</span></figcaption>
+    <div class="scroll"><table class="data" id="fig-eager"></table></div>
+  </figure>
+
+  <figure>
+    <figcaption><span class="fig">Figure 7</span><span class="ttl">Every TensorRT kernel, by time per cycle</span>
+      <span class="sub">Identical kernels within a stage are merged. Time per cycle is from the trace; µs per call and the counters are from ncu. Shaded cells show % of peak.</span></figcaption>
+    <div class="tabs" role="tablist" id="ktabs"></div>
+    <div class="scroll"><table class="data" id="ktable"></table></div>
+    <button class="more" id="kmore" type="button" hidden></button>
+  </figure>
+</section>
+
+<section class="method">
+  <h2 style="color:var(--ink)">How this was measured</h2>
+  <pre>sudo scripts/profile.sh ncu       # ncu, application replay, 9 sections + tensor/DRAM metrics
+scripts/profile.sh analyze        # results/profile/profile.json
+# report: profiles/ncu/trt_bf16.ncu-repz   (open with /opt/nvidia/nsight-compute/2026.3.1/ncu-ui)</pre>
+  <ul>
+    <li>Workload: <code>pi05_edge.profile_run --path trt</code>, two warm-up cycles, then one profiled cycle with one denoising step inside <code>cudaProfilerStart/Stop</code>. Each kernel is assigned to the NVTX range (vision, prefix, denoise_step) its launch sits in.</li>
+    <li>Application replay: the program ran 31 times, one counter pass per run, and ncu matched kernels across runs by name and grid. The capture took 3&nbsp;h&nbsp;8&nbsp;min. Kernel replay was not usable: saving and restoring PyTorch's memory pool around every kernel grew ncu past 12&nbsp;GB of host memory.</li>
+    <li>ncu locks the SM clock at its base, 2,381&nbsp;MHz, and flushes the caches before every pass, so its kernel times sum to 80.8&nbsp;ms per cycle against 61.4&nbsp;ms in the trace (about 2.8&nbsp;GHz boost). Throughputs are % of peak at ncu's clock: bf16 tensor cores with fp32 accumulation 207.3&nbsp;TFLOPS, DRAM 1,757.5&nbsp;GB/s.</li>
+    <li>Tiny kernels look much slower under ncu than in the trace: TensorRT's <code>__myl_Move</code> takes 4.3&nbsp;µs per call under ncu and 0.6&nbsp;µs in a normal run. That is why times on this page come from the trace.</li>
+    <li>FLOPs count tensor-core work only (<code>sm__ops_path_tensor_src_*</code>). The SASS fp32 instruction counters read zero on GB202 with this ncu version, so CUDA-core kernels get no roofline point.</li>
+  </ul>
+</section>
+</main>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function el(tag, attrs = {}, html) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const fmt = (v, d = 1) => v == null ? "–" : Number(v).toLocaleString("en-US", {minimumFractionDigits: d, maximumFractionDigits: d});
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect(), pad = 14;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+
+const STAGES = ["vision", "prefix", "denoise_step"];
+const STAGE_LABEL = {vision: "Vision", prefix: "Prefix", denoise_step: "Denoising ×10"};
+const BOUNDS = ["compute", "memory", "latency"];
+const BOUND_TOK = {compute: "--lim-compute", memory: "--lim-memory", latency: "--idle"};
+const CAT_TOK = {"GEMM (tensor cores)": "--c1", "GEMM/GEMV (fp32 CUDA cores)": "--c2", "Attention": "--c3"};
+const catCol = c => tok(CAT_TOK[c] || "--other");
+const STALL_NAME = {
+  long_scoreboard: "Long scoreboard (global/L2 memory)", math_pipe_throttle: "Math-pipe throttle (pipe full)",
+  no_instruction: "No instruction fetched", wait: "Fixed-latency wait", short_scoreboard: "Short scoreboard (shared mem, MUFU)",
+  selected: "Selected (issuing)", barrier: "Block barrier", lg_throttle: "Local/global queue full", mio_throttle: "MIO queue full",
+  drain: "Drain at exit", branch_resolving: "Branch resolving", dispatch_stall: "Dispatch stall", imc_miss: "Constant cache miss",
+  tex_throttle: "Texture queue full", sleeping: "Sleeping", membar: "Memory barrier"};
+
+function nick(g) {
+  const n = g.name, t = n.match(/tilesize(\d+)x(\d+)x\d+/);
+  if (n === "_gemm_mha_v2") return g.stage === "denoise_step" ? "Denoising attention" : "Prefix attention";
+  if (n.includes("gemvx")) return g.stage === "denoise_step" ? "Time-conditioning GEMV (fp32)" : "fp32 GEMV";
+  if (t) return `${STAGE_LABEL[g.stage].replace(" ×10", "")} ${n.includes("tf32") ? "TF32 " : ""}GEMM ${t[1]}×${t[2]}`;
+  if (n.startsWith("__myl_")) return "TensorRT fused " + (g.cat === "Normalization" ? "norm" : "element-wise");
+  return null;
+}
+function boundOf(g) { return g.bound || "latency"; }
+
+// Direct labels: try right, left, below, above each dot; keep clear of other labels, of dots with r >= 5 and of the plot edge.
+function placeLabels(svg, items, dots, bounds, reserved = []) {
+  const boxes = reserved.slice();
+  for (const it of items) {
+    const t = svgEl("text", {x: 0, y: 0, "font-size": 12, fill: tok("--ink"), stroke: tok("--surface"), "stroke-width": 3, "paint-order": "stroke",
+      "stroke-linejoin": "round", "font-family": tok("--sans"), "pointer-events": "none"}, svg);
+    t.textContent = it.text;
+    const w = t.getComputedTextLength() || it.text.length * 6.6;
+    const cands = [{x: it.x + it.r + 5, y: it.y + 4, a: "start"}, {x: it.x - it.r - 5, y: it.y + 4, a: "end"},
+                   {x: it.x, y: it.y + it.r + 14, a: "middle"}, {x: it.x + it.r, y: it.y + it.r + 14, a: "end"}, {x: it.x - it.r, y: it.y + it.r + 14, a: "start"},
+                   {x: it.x, y: it.y - it.r - 6, a: "middle"}, {x: it.x + it.r, y: it.y - it.r - 6, a: "end"}];
+    const box = c => { const x0 = c.a === "start" ? c.x : c.a === "end" ? c.x - w : c.x - w / 2; return {x0, x1: x0 + w, y0: c.y - 11, y1: c.y + 3}; };
+    const inside = b => b.x0 >= bounds.x0 && b.x1 <= bounds.x1 && b.y0 >= bounds.y0 && b.y1 <= bounds.y1;
+    const hits = (b, d) => { const cx = Math.max(b.x0, Math.min(d.x, b.x1)), cy = Math.max(b.y0, Math.min(d.y, b.y1)); return (cx - d.x) ** 2 + (cy - d.y) ** 2 < (d.r + 1) ** 2; };
+    const free = b => inside(b) && !boxes.some(q => !(b.x1 < q.x0 || b.x0 > q.x1 || b.y1 < q.y0 || b.y0 > q.y1)) && !dots.some(d => d !== it.dot && d.r >= 5 && hits(b, d));
+    const pick = cands.find(c => free(box(c))) || cands.find(c => inside(box(c))) || cands[0];
+    boxes.push(box(pick));
+    t.setAttribute("x", pick.x); t.setAttribute("y", pick.y); t.setAttribute("text-anchor", pick.a);
+  }
+}
+
+let D = null;
+
+function renderStageTable() {
+  const t = document.getElementById("stages");
+  const total = STAGES.reduce((a, s) => a + D.stages[s].real_busy_ms, 0);
+  let h = `<thead><tr><th>Stage</th><th>GPU time<br>per cycle</th><th>Share</th><th>Kernels<br>per cycle</th><th>SM throughput<br>(% of peak)</th><th>Tensor pipes<br>(% of peak)</th><th>Time by limiter</th></tr></thead><tbody>`;
+  for (const s of STAGES) {
+    const st = D.stages[s], n = st.ncu;
+    const lim = {compute: 0, memory: 0, latency: 0};
+    for (const g of D.groups) if (g.stage === s) lim[boundOf(g)] += g.real_ms || 0;
+    const tot = lim.compute + lim.memory + lim.latency;
+    const bar = BOUNDS.filter(b => lim[b] > 0).map(b => `<i style="width:${(lim[b] / tot * 100).toFixed(1)}%;background:var(${BOUND_TOK[b]})" title="${b}-bound ${fmt(lim[b], 1)} ms"></i>`).join("");
+    h += `<tr><td>${STAGE_LABEL[s]}</td><td class="big">${fmt(st.real_busy_ms, 1)}<span class="unit">ms</span></td><td>${fmt(st.real_busy_ms / total * 100, 0)}%</td>
+      <td>${fmt(st.real_kernels, 0)}</td><td>${fmt(n.sm_pct, 1)}%</td><td>${fmt(n.tensor_pct, 1)}%</td><td><span class="limbar" aria-label="compute ${fmt(lim.compute,1)} ms, memory ${fmt(lim.memory,1)} ms, latency ${fmt(lim.latency,1)} ms">${bar}</span></td></tr>`;
+  }
+  h += `</tbody><tfoot><tr><td>Whole cycle</td><td>${fmt(total, 1)} ms</td><td>100%</td><td>${fmt(STAGES.reduce((a, s) => a + D.stages[s].real_kernels, 0), 0)}</td><td></td><td></td><td></td></tr></tfoot>`;
+  t.innerHTML = h;
+}
+
+function renderLimits() {
+  const box = document.getElementById("fig-limits"); box.innerHTML = "";
+  const W = box.clientWidth, rowH = 34, gap = 14, left = Math.min(130, W * 0.28), right = 16, top = 4;
+  const H = top + STAGES.length * (rowH + gap) + 22;
+  const rows = STAGES.map(s => {
+    const segs = BOUNDS.map(b => {
+      const gs = D.groups.filter(g => g.stage === s && boundOf(g) === b).sort((a, c) => (c.real_ms || 0) - (a.real_ms || 0));
+      return {b, ms: gs.reduce((a, g) => a + (g.real_ms || 0), 0), gs};
+    });
+    return {s, segs, total: segs.reduce((a, x) => a + x.ms, 0)};
+  });
+  const maxv = 30, x = v => left + v / maxv * (W - left - right);
+  const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": "GPU time per stage split by limiter"}, box);
+  for (let t = 0; t <= maxv; t += 5) {
+    svgEl("line", {x1: x(t), x2: x(t), y1: top, y2: H - 22, stroke: tok("--grid"), "stroke-width": 1}, svg);
+    const tx = svgEl("text", {x: x(t), y: H - 6, "text-anchor": "middle", "font-size": 11.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg);
+    tx.textContent = t + (t === maxv ? " ms" : "");
+  }
+  rows.forEach((r, i) => {
+    const y = top + i * (rowH + gap);
+    const lb = svgEl("text", {x: 0, y: y + rowH / 2 + 4, "font-size": 13, fill: tok("--ink"), "font-family": tok("--sans")}, svg);
+    lb.textContent = STAGE_LABEL[r.s];
+    let acc = 0;
+    const live = r.segs.filter(sg => sg.ms > 0);
+    live.forEach((sg, j) => {
+      const x0 = x(acc) + (j ? 1 : 0), x1 = x(acc + sg.ms) - (j < live.length - 1 ? 1 : 0);
+      const last = j === live.length - 1;
+      const w = Math.max(1, x1 - x0);
+      const d = last ? `M${x0},${y}h${w - 4}a4,4 0 0 1 4,4v${rowH - 8}a4,4 0 0 1 -4,4h${-(w - 4)}z` : `M${x0},${y}h${w}v${rowH}h${-w}z`;
+      const p = svgEl("path", {d, fill: tok(BOUND_TOK[sg.b])}, svg);
+      const top3 = sg.gs.slice(0, 3).map(g => `${esc(nick(g) || g.name.slice(0, 48))}: ${fmt(g.real_ms, 2)} ms`).join("<br>");
+      const html = `<b>${STAGE_LABEL[r.s]} · ${sg.b}-bound</b><br>${fmt(sg.ms, 2)} ms per cycle, ${fmt(sg.ms / r.total * 100, 0)}% of the stage<br><span class="k">${top3}</span>`;
+      p.addEventListener("mousemove", ev => showTip(ev, html)); p.addEventListener("mouseleave", hideTip);
+      if (w > 44) {
+        const tx = svgEl("text", {x: x0 + w / 2, y: y + rowH / 2 + 4, "text-anchor": "middle", "font-size": 11.5, "font-weight": 500,
+          fill: sg.b === "compute" ? tok("--surface") : tok("--ink"), "font-family": tok("--sans"), "pointer-events": "none"}, svg);
+        tx.textContent = fmt(sg.ms, 1);
+      }
+      acc += sg.ms;
+    });
+    const tt = svgEl("text", {x: x(r.total) + 6, y: y + rowH / 2 + 4, "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg);
+    tt.textContent = fmt(r.total, 1) + " ms";
+    if (x(r.total) + 60 > W) tt.setAttribute("display", "none");
+  });
+}
+
+function dotTip(g) {
+  return `<b>${esc(nick(g) || "Kernel")}</b> · ${STAGE_LABEL[g.stage]}<br><span class="k">${esc(g.name)}</span><br>` +
+    `${fmt(g.real_ms, 2)} ms per cycle · ${fmt(g.calls, 0)} calls · ${fmt(g.us, 1)} µs per call under ncu<br>` +
+    `SM ${fmt(g.sm_pct, 1)}% · memory ${fmt(g.mem_pct, 1)}% · DRAM ${fmt(g.dram_pct, 1)}% · tensor ${fmt(g.tensor_pct, 1)}%<br>` +
+    `occupancy ${fmt(g.occ_achieved_pct, 1)}% of ${fmt(g.occ_theoretical_pct, 1)}% (${g.limiter || "–"}) · grid ${g.grid}×${g.block}, ${fmt(g.waves, 2)} waves<br>` +
+    `main stall: ${esc(STALL_NAME[g.stall] || g.stall || "–")}`;
+}
+
+function renderSOL() {
+  const box = document.getElementById("fig-sol"); box.innerHTML = "";
+  const W = box.clientWidth, H = Math.min(420, Math.max(300, W * 0.55)), m = {l: 46, r: 14, t: 10, b: 40};
+  const x = v => m.l + v / 100 * (W - m.l - m.r), y = v => H - m.b - v / 100 * (H - m.t - m.b);
+  const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": "SM throughput against memory throughput per kernel"}, box);
+  svgEl("rect", {x: x(0), y: y(50), width: x(50) - x(0), height: y(0) - y(50), fill: tok("--wash")}, svg);
+  for (let t = 0; t <= 100; t += 25) {
+    svgEl("line", {x1: x(t), x2: x(t), y1: y(0), y2: y(100), stroke: tok("--grid")}, svg);
+    svgEl("line", {x1: x(0), x2: x(100), y1: y(t), y2: y(t), stroke: tok("--grid")}, svg);
+    const a = svgEl("text", {x: x(t), y: H - m.b + 16, "text-anchor": "middle", "font-size": 11.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg); a.textContent = t + "%";
+    const b = svgEl("text", {x: m.l - 6, y: y(t) + 4, "text-anchor": "end", "font-size": 11.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg); b.textContent = t + "%";
+  }
+  const xl = svgEl("text", {x: x(100), y: H - 4, "text-anchor": "end", "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); xl.textContent = "Memory throughput (% of peak) →";
+  const yl = svgEl("text", {x: x(0) + 6, y: y(100) + 12, "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); yl.textContent = "↑ SM throughput (% of peak)";
+  const ql = svgEl("text", {x: x(25), y: y(25) + 4, "text-anchor": "middle", "font-size": 12, fill: tok("--muted"), "font-family": tok("--sans")}, svg); ql.textContent = "latency-bound";
+  const maxms = Math.max(...D.groups.map(g => g.real_ms || 0));
+  const R = g => 3 + 17 * Math.sqrt((g.real_ms || 0) / maxms);
+  const gs = D.groups.filter(g => g.sm_pct != null && g.mem_pct != null).sort((a, b) => (b.real_ms || 0) - (a.real_ms || 0));
+  const dots = gs.map(g => {
+    const d = {g, x: x(g.mem_pct), y: y(g.sm_pct), r: R(g)};
+    const c = svgEl("circle", {cx: d.x, cy: d.y, r: d.r, fill: catCol(g.cat), "fill-opacity": 0.85, stroke: tok("--surface"), "stroke-width": 1.5}, svg);
+    c.addEventListener("mousemove", ev => showTip(ev, dotTip(g))); c.addEventListener("mouseleave", hideTip);
+    return d;
+  });
+  placeLabels(svg, dots.slice(0, 5).map(d => ({x: d.x, y: d.y, r: d.r, dot: d, text: nick(d.g) || d.g.name.slice(0, 24)})), dots,
+              {x0: m.l + 2, x1: W - 2, y0: m.t - 6, y1: H - m.b - 2});
+}
+
+function renderRoof() {
+  const box = document.getElementById("fig-roof"); box.innerHTML = "";
+  const P = D.meta.peaks, bw = P.dram_GBps / 1000, bf = P.bf16_tensor_tflops, tf = bf / 2;  // TB/s; TFLOPS
+  const W = box.clientWidth, H = Math.min(400, Math.max(290, W * 0.5)), m = {l: 50, r: 14, t: 12, b: 40};
+  const X0 = 1, X1 = 3000, Y0 = 1, Y1 = 400;
+  const lx = v => m.l + (Math.log10(v) - Math.log10(X0)) / (Math.log10(X1) - Math.log10(X0)) * (W - m.l - m.r);
+  const ly = v => H - m.b - (Math.log10(v) - Math.log10(Y0)) / (Math.log10(Y1) - Math.log10(Y0)) * (H - m.t - m.b);
+  const svg = svgEl("svg", {width: W, height: H, role: "img", "aria-label": "Roofline of tensor-core kernels"}, box);
+  for (const t of [1, 10, 100, 1000]) {
+    svgEl("line", {x1: lx(t), x2: lx(t), y1: ly(Y0), y2: ly(Y1), stroke: tok("--grid")}, svg);
+    const a = svgEl("text", {x: lx(t), y: H - m.b + 16, "text-anchor": "middle", "font-size": 11.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg); a.textContent = t.toLocaleString();
+  }
+  for (const t of [1, 10, 100]) {
+    svgEl("line", {x1: lx(X0), x2: lx(X1), y1: ly(t), y2: ly(t), stroke: tok("--grid")}, svg);
+    const b = svgEl("text", {x: m.l - 6, y: ly(t) + 4, "text-anchor": "end", "font-size": 11.5, fill: tok("--muted"), "font-family": tok("--sans")}, svg); b.textContent = t;
+  }
+  const xl = svgEl("text", {x: lx(X1), y: H - 4, "text-anchor": "end", "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); xl.textContent = "FLOPs per DRAM byte →";
+  const yl = svgEl("text", {x: m.l + 6, y: ly(Y1) + 12, "font-size": 12, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); yl.textContent = "↑ TFLOPS";
+  const roof = (peak, dash) => {
+    const ridge = peak / bw;
+    svgEl("path", {d: `M${lx(X0)},${ly(X0 * bw)}L${lx(ridge)},${ly(peak)}L${lx(X1)},${ly(peak)}`, fill: "none", stroke: tok("--ink-2"), "stroke-width": 2, ...(dash ? {"stroke-dasharray": "5 4"} : {})}, svg);
+  };
+  roof(bf, false); roof(tf, true);
+  const rl = svgEl("text", {x: lx(bf / bw) - 8, y: ly(bf) - 4, "text-anchor": "end", "font-size": 11.5, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); rl.setAttribute("stroke", tok("--surface")); rl.setAttribute("stroke-width", 3); rl.setAttribute("paint-order", "stroke"); rl.textContent = "bf16 roof " + fmt(bf, 0) + " TFLOPS";
+  const rt = svgEl("text", {x: lx(tf / bw) - 8, y: ly(tf) - 4, "text-anchor": "end", "font-size": 11.5, fill: tok("--ink-2"), "font-family": tok("--sans")}, svg); rt.setAttribute("stroke", tok("--surface")); rt.setAttribute("stroke-width", 3); rt.setAttribute("paint-order", "stroke"); rt.textContent = "TF32 roof " + fmt(tf, 0);
+  const maxms = Math.max(...D.groups.map(g => g.real_ms || 0));
+  const R = g => 3 + 15 * Math.sqrt((g.real_ms || 0) / maxms);
+  const gs = D.groups.filter(g => g.ai && g.tflops && g.ai >= X0 && g.tflops >= Y0).sort((a, b) => (b.real_ms || 0) - (a.real_ms || 0));
+  const dots = gs.map(g => {
+    const d = {g, x: lx(Math.min(g.ai, X1)), y: ly(g.tflops), r: R(g)};
+    const c = svgEl("circle", {cx: d.x, cy: d.y, r: d.r, fill: catCol(g.cat), "fill-opacity": 0.85, stroke: tok("--surface"), "stroke-width": 1.5}, svg);
+    const html = dotTip(g) + `<br>${fmt(g.tflops, 1)} TFLOPS at ${fmt(g.ai, 0)} FLOPs/byte`;
+    c.addEventListener("mousemove", ev => showTip(ev, html)); c.addEventListener("mouseleave", hideTip);
+    return d;
+  });
+  if (W < 640) { rl.remove(); rt.remove(); }  // narrow: the legend names the roofs and the dot labels need the room
+  const reserved = W < 640 ? [] : [rl, rt].map(t => { const b = t.getBBox(); return {x0: b.x - 2, x1: b.x + b.width + 2, y0: b.y, y1: b.y + b.height}; });
+  placeLabels(svg, dots.slice(0, 4).map(d => ({x: d.x, y: d.y, r: d.r, dot: d, text: nick(d.g) || ""})), dots,
+              {x0: m.l + 2, x1: W - 2, y0: m.t - 6, y1: H - m.b - 2}, reserved);
+}
+
+function renderStalls() {
+  const box = document.getElementById("fig-stalls"); box.innerHTML = "";
+  for (const s of STAGES) {
+    const sh = D.stages[s].ncu.stall_share;
+    const items = Object.entries(sh).slice(0, 6);
+    const max = Math.max(...items.map(([, v]) => v));
+    const p = el("div", {class: "panel"});
+    p.appendChild(el("div", {class: "panel-title"}, STAGE_LABEL[s]));
+    const bars = el("div", {class: "hbars"});
+    for (const [k, v] of items) {
+      bars.appendChild(el("div", {class: "hbar"},
+        `<div class="name"><span>${esc(STALL_NAME[k] || k)}</span></div><div class="track"><div class="fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div><div class="val">${fmt(v * 100, 0)}%</div>`));
+    }
+    p.appendChild(bars);
+    box.appendChild(p);
+  }
+}
+
+function renderRules() {
+  const box = document.getElementById("fig-rules"); box.innerHTML = "";
+  const items = Object.entries(D.rules).slice(0, 8);
+  const max = Math.max(...items.map(([, v]) => v.ms));
+  for (const [name, v] of items) {
+    const ex = v.example || "";
+    const i = ex.indexOf(": ");
+    const kname = i > 0 ? ex.slice(0, i) : "", msg = i > 0 ? ex.slice(i + 2) : ex;
+    const short = kname.length > 44 ? kname.slice(0, 44) + "…" : kname;
+    const text = msg.length > 230 ? msg.slice(0, 230).replace(/\s+\S*$/, "") + "…" : msg;
+    box.appendChild(el("div", {class: "rule"},
+      `<div class="name">${esc(name)} <span class="stagetag">· ${v.kernels} kernels</span></div><div class="val">${fmt(v.ms, 1)} ms</div>` +
+      `<div class="track"><div class="fill" style="width:${(v.ms / max * 100).toFixed(1)}%"></div></div>` +
+      `<div class="ex"><code>${esc(short)}</code> ${esc(text)}</div>`));
+  }
+}
+
+function renderEager() {
+  const t = document.getElementById("fig-eager");
+  const bsplit = b => b ? BOUNDS.filter(k => b[k]).map(k => `${fmt(b[k] * 100, 0)}% ${k}`).join(", ") : "";
+  let h = `<thead><tr><th class="l">Stage</th><th class="l">Path</th><th>Kernel time<br>(ncu, ms)</th><th>SM throughput</th><th>Tensor pipes</th><th>Achieved<br>occupancy</th><th class="l">Kernel time by limiter</th></tr></thead><tbody>`;
+  for (const s of STAGES) {
+    const e = D.stages[s].eager, r = D.stages[s].ncu;
+    const row = (path, x) => `<td>${fmt(x.ms_per_cycle_at_base_clock, 1)}</td><td>${fmt(x.sm_pct, 1)}%</td><td>${fmt(x.tensor_pct, 1)}%</td><td>${fmt(x.occ_achieved_pct, 1)}%</td><td class="l">${bsplit(x.bound_share)}</td>`;
+    h += `<tr><td class="l" rowspan="2">${STAGE_LABEL[s]}</td><td class="l">PyTorch eager</td>` + (e ? row("eager", e) : `<td class="l" colspan="5" style="color:var(--muted)">Not captured</td>`) + `</tr>`;
+    h += `<tr><td class="l">TensorRT</td>${row("trt", r)}</tr>`;
+  }
+  t.innerHTML = h + "</tbody>";
+}
+
+let ktab = "all", kall = false;
+function heat(v) {
+  if (v == null) return `<td>–</td>`;
+  const a = Math.max(0, Math.min(100, v)) * 0.42;
+  return `<td class="h" style="background:color-mix(in srgb, var(--heat) ${a.toFixed(0)}%, transparent)">${fmt(v, 1)}</td>`;
+}
+function renderKernels() {
+  const tabs = document.getElementById("ktabs");
+  if (!tabs.childElementCount) {
+    for (const [k, label] of [["all", "All stages"], ["vision", "Vision"], ["prefix", "Prefix"], ["denoise_step", "Denoising"]]) {
+      const b = el("button", {type: "button", role: "tab", "aria-selected": String(k === ktab), id: "tab-" + k}, label);
+      b.addEventListener("click", () => { ktab = k; kall = false; for (const x of tabs.children) x.setAttribute("aria-selected", String(x === b)); renderKernels(); });
+      tabs.appendChild(b);
+    }
+  }
+  const rows = D.groups.filter(g => ktab === "all" || g.stage === ktab);
+  const limit = 20, show = kall ? rows : rows.slice(0, limit);
+  const maxms = Math.max(...rows.map(g => g.real_ms || 0));
+  let h = `<thead><tr><th class="l">Kernel</th><th>Calls<br>per cycle</th><th class="l">Time per cycle (ms)</th><th>µs per call<br>(ncu)</th><th>SM %</th><th>Memory %</th><th>Tensor %</th><th>Occupancy<br>achieved / limit</th><th>Grid × block<br>(waves)</th><th class="l">Main stall</th></tr></thead><tbody>`;
+  for (const g of show) {
+    const nk = nick(g);
+    h += `<tr><td class="k"><span class="nick"><i class="dot" style="background:${catCol(g.cat)}"></i>${esc(nk || g.cat)}</span>${ktab === "all" ? `<span class="where">${STAGE_LABEL[g.stage]}</span>` : ""}<span class="raw">${esc(g.name)}</span></td>` +
+      `<td>${fmt(g.calls, 0)}</td><td class="l">${fmt(g.real_ms, 2)}<i class="minibar" style="width:${Math.max(1, (g.real_ms || 0) / maxms * 90).toFixed(0)}px"></i></td><td>${fmt(g.us, 1)}</td>` +
+      heat(g.sm_pct) + heat(g.mem_pct) + heat(g.tensor_pct) +
+      `<td>${fmt(g.occ_achieved_pct, 0)}% / ${fmt(g.occ_theoretical_pct, 0)}%${g.limiter ? ` <span class="stagetag">${g.limiter}</span>` : ""}</td>` +
+      `<td>${esc(g.grid)}×${g.block} <span class="stagetag">(${fmt(g.waves, 2)})</span></td><td class="l">${esc(STALL_NAME[g.stall] || g.stall || "–")}</td></tr>`;
+  }
+  document.getElementById("ktable").innerHTML = h + "</tbody>";
+  const more = document.getElementById("kmore");
+  more.hidden = rows.length <= limit;
+  more.textContent = kall ? `Show the top ${limit}` : `Show all ${rows.length} kernels`;
+  more.onclick = () => { kall = !kall; renderKernels(); };
+}
+
+function renderAll() {
+  if (!D) return;
+  renderStageTable(); renderLimits(); renderSOL(); renderRoof(); renderStalls(); renderRules(); renderEager(); renderKernels();
+}
+let rt = 0;
+addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderAll, 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+new MutationObserver(renderAll).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+fetch("trt_ncu.json").then(r => r.json()).then(d => { D = d; renderAll(); })
+  .catch(() => { document.getElementById("fig-limits").textContent = "The data file trt_ncu.json did not load; reload the page to try again."; });
+</script>
